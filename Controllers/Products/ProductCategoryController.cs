@@ -137,6 +137,7 @@ namespace SCMR_Api.Controllers
 
         
         [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> getAll()
         {
             try

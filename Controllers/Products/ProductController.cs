@@ -237,6 +237,7 @@ namespace SCMR_Api.Controllers
 
                 var products = db.Products
                         .Include(c => c.Writer)
+                        .Include(c => c.ProductCategory)
                     .Where(c => c.TotalType == (ProductTotalType)param.totalType)
                 .AsQueryable();
 
@@ -246,6 +247,11 @@ namespace SCMR_Api.Controllers
                 {
                     products = products.Where(c => c.Title.Contains(query) ||
                                 c.Desc.Contains(query) || c.Tags.Contains(query) || c.Writer.FullName.Contains(query));
+                }
+
+                if (param.cats.Any())
+                {
+                    products = products.Where(c => param.cats.Contains(c.ProductCategory.Id));
                 }
 
                 count = await products.CountAsync();
@@ -285,6 +291,7 @@ namespace SCMR_Api.Controllers
                         Value = c.Value,
                         TotalPrice = c.TotalPrice.ToString("#,##0"),
                         writerString = c.Writer.FullName,
+                        writerPic = c.Writer.PicUrl,
                         PicUrl = c.PicUrl
                     })
                 .ToListAsync();
@@ -417,5 +424,6 @@ namespace SCMR_Api.Controllers
         public string sort { get; set; }
         public string searchText { get; set; }
         public int totalType { get; set; }
+        public int[] cats { get; set; }
     }
 }
