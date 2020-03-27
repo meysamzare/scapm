@@ -117,6 +117,10 @@ namespace SCMR_Api.Model
                 {
                     return "متن طولانی";
                 }
+                if (AttrType == AttrType.radiobutton)
+                {
+                    return "لیست گزینشی";
+                }
 
 
                 return "";
@@ -162,6 +166,10 @@ namespace SCMR_Api.Model
                 {
                     return 9;
                 }
+                if (AttrType == AttrType.radiobutton)
+                {
+                    return 10;
+                }
 
                 return 1;
             }
@@ -205,6 +213,10 @@ namespace SCMR_Api.Model
             {
                 return 9;
             }
+            if (attrType == AttrType.radiobutton)
+            {
+                return 10;
+            }
 
             return 1;
         }
@@ -243,7 +255,8 @@ namespace SCMR_Api.Model
         combobox = 6,
         pic = 7,
         file = 8,
-        textarea = 9
+        textarea = 9,
+        radiobutton = 10
     }
 }
 

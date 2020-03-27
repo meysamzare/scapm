@@ -97,7 +97,7 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var sl = await db.Attributes.Select(c => new { id = c.Id, name = c.Title }).ToListAsync();
+                var sl = await db.Attributes.Select(c => new { id = c.Id, title = c.Title }).ToListAsync();
 
                 return this.DataFunction(true, sl);
             }
