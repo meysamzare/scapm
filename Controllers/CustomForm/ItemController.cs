@@ -15,6 +15,7 @@ using Microsoft.IdentityModel.Tokens;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using SCMR_Api.Model;
+using Newtonsoft.Json;
 
 namespace SCMR_Api.Controllers
 {
@@ -1006,10 +1007,16 @@ namespace SCMR_Api.Controllers
 
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> SetItemeWithAttrs([FromBody] ItemWithAttrsParams itemWithAttrs)
+        [DisableRequestSizeLimit]
+        [RequestFormLimits(ValueLengthLimit = int.MaxValue, MultipartBodyLengthLimit = long.MaxValue)]
+        public async Task<IActionResult> SetItemeWithAttrs()
         {
             try
             {
+                var itemWithAttrs = JsonConvert.DeserializeObject<ItemWithAttrsParams>(Request.Form.FirstOrDefault(c => c.Key == "object").Value);
+
+                var files = Request.Form.Files;
+
                 var item = new Item
                 {
                     CategoryId = itemWithAttrs.catId,
@@ -1018,7 +1025,8 @@ namespace SCMR_Api.Controllers
                     Title = itemWithAttrs.itemAttrs.FirstOrDefault().AttrubuteValue,
                     UnitId = db.Units.FirstOrDefault().Id,
                     DateAdd = DateTime.Now,
-                    // AuthorizedUsername = itemWithAttrs.authorizedBy
+                    AuthorizedUsername = itemWithAttrs.authorizedUsername,
+                    AuthorizedFullName = itemWithAttrs.authorizedFullName
                 };
 
                 db.Items.Add(item);
@@ -1034,19 +1042,41 @@ namespace SCMR_Api.Controllers
                     var filepath = "";
                     if (itemAttr.AttributeFilePath.Equals("1"))
                     {
-                        if (!string.IsNullOrWhiteSpace(itemAttr.AttrubuteValue))
+                        if (itemAttr.AttrubuteValue == "(binery)")
                         {
+                            var file = files.FirstOrDefault(c => c.FileName == itemAttr.FileName);
+
                             var guid = System.Guid.NewGuid().ToString();
-
-                            var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, itemAttr.FileName);
                             Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
+                            string fileName = System.Net.Http.Headers.ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
+                            var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, fileName);
 
-                            byte[] bytes = Convert.FromBase64String(itemAttr.AttrubuteValue);
-                            System.IO.File.WriteAllBytes(path, bytes);
+                            if (file.Length > 0)
+                            {
+                                using (var stream = new FileStream(path, FileMode.Create))
+                                {
+                                    await file.CopyToAsync(stream);
+                                }
+                            }
 
-                            filepath = Path.Combine("/UploadFiles/" + guid + "/" + itemAttr.FileName);
+                            filepath = Path.Combine("/UploadFiles", guid, fileName);
+                        }
+                        else
+                        {
+                            if (!string.IsNullOrWhiteSpace(itemAttr.AttrubuteValue))
+                            {
+                                var guid = System.Guid.NewGuid().ToString();
 
-                            itemAttr.AttrubuteValue = path;
+                                var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, itemAttr.FileName);
+                                Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
+
+                                byte[] bytes = Convert.FromBase64String(itemAttr.AttrubuteValue);
+                                System.IO.File.WriteAllBytes(path, bytes);
+
+                                filepath = Path.Combine("/UploadFiles/" + guid + "/" + itemAttr.FileName);
+
+                                itemAttr.AttrubuteValue = path;
+                            }
                         }
                     }
 

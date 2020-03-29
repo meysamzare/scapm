@@ -27,6 +27,8 @@ namespace SCMR_Api.Model
 
         public AttrType AttrType { get; set; }
 
+        public int MaxFileSize { get; set; }
+
         public bool IsUniq { get; set; }
 
         public int Order { get; set; }

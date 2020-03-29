@@ -42,7 +42,8 @@ namespace SCMR_Api.Controllers
                     IsInSearch = addAttrParam.IsInSearch,
                     Placeholder = addAttrParam.placeholder,
                     IsRequired = addAttrParam.isRequired,
-                    IsMeliCode = addAttrParam.isMeliCode
+                    IsMeliCode = addAttrParam.isMeliCode,
+                    MaxFileSize = addAttrParam.maxFileSize
                 };
 
                 db.Attributes.Add(Attr);
@@ -80,6 +81,7 @@ namespace SCMR_Api.Controllers
                 attr.Placeholder = addAttrParam.placeholder;
                 attr.IsRequired = addAttrParam.isRequired;
                 attr.IsMeliCode = addAttrParam.isMeliCode;
+                attr.MaxFileSize = addAttrParam.maxFileSize;
 
                 await db.SaveChangesAsync();
 
@@ -316,6 +318,7 @@ namespace SCMR_Api.Controllers
         }
 
 
+        // return Attributes for register item
         [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> getAttrsForCat_C([FromBody] int catId)
@@ -335,7 +338,8 @@ namespace SCMR_Api.Controllers
                     Title = c.Title,
                     Placeholder = c.Placeholder,
                     Desc = c.Desc,
-                    Values = c.Values
+                    Values = c.Values,
+                    MaxFileSize = c.MaxFileSize
                 })
                 .ToList();
 
@@ -390,6 +394,8 @@ namespace SCMR_Api.Controllers
         public string title { get; set; }
 
         public int attrTypeInt { get; set; }
+
+        public int maxFileSize { get; set; }
 
         public string desc { get; set; }
 
