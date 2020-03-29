@@ -576,6 +576,34 @@ namespace SCMR_Api.Controllers
             return items;
         }
 
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> getDate([FromBody] DateTime date)
+        {
+            try
+            {
+                return this.UnSuccessFunction(date.ToPersianDate());
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> getNowDate()
+        {
+            try
+            {
+                return this.DataFunction(true, DateTime.Now);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
     }
 
     public class AddCategoryParam
