@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
@@ -33,23 +32,36 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var file = Request.Form.Files[0];
-                var param = JsonConvert.DeserializeObject<Link>(Request.Form.First().Value);
+                var files = Request.Form.Files;
+                var param = JsonConvert.DeserializeObject<Link>(Request.Form.FirstOrDefault(c => c.Key == "object").Value);
+                var fileExternalUrl = Request.Form.FirstOrDefault(c => c.Key == "fileExternalUrl").Value.First();
 
-                var guid = System.Guid.NewGuid().ToString();
-                Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
-                string fileName = ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
-                var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, fileName);
-
-                if (file.Length > 0)
+                if (files.Any())
                 {
-                    using (var stream = new FileStream(path, FileMode.Create))
+                    var file = files[0];
+                    var guid = System.Guid.NewGuid().ToString();
+                    Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
+                    string fileName = ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, fileName);
+
+                    if (file.Length > 0)
                     {
-                        await file.CopyToAsync(stream);
+                        using (var stream = new FileStream(path, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
                     }
+
+                    param.FileUrl = Path.Combine("/UploadFiles", guid, fileName);
+                    param.HaveExternalUrl = false;
+                }
+                else
+                {
+                    param.FileUrl = fileExternalUrl;
+                    param.HaveExternalUrl = true;
                 }
 
-                param.FileUrl = Path.Combine("/UploadFiles", guid, fileName);
+                param.Id = Guid.Empty;
 
                 await db.AddAsync(param);
 
@@ -69,37 +81,45 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-
-                var param = JsonConvert.DeserializeObject<Link>(Request.Form.First().Value);
+                var param = JsonConvert.DeserializeObject<Link>(Request.Form.FirstOrDefault(c => c.Key == "object").Value);
+                var fileExternalUrl = Request.Form.FirstOrDefault(c => c.Key == "fileExternalUrl").Value.First();
 
                 var picurl = param.FileUrl;
 
-                if (Request.Form.Files.Any())
+                if (Request.Form.Files.Any() || !string.IsNullOrWhiteSpace(fileExternalUrl))
                 {
-                    var file = Request.Form.Files[0];
-
-                    var guid = System.Guid.NewGuid().ToString();
-                    Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
-                    string fileName = ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
-                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, fileName);
-
-
-                    if (file.Length > 0)
+                    if (Request.Form.Files.Any())
                     {
-                        using (var stream = new FileStream(path, FileMode.Create))
+                        var file = Request.Form.Files[0];
+
+                        var guid = System.Guid.NewGuid().ToString();
+                        Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
+                        string fileName = ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
+                        var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, fileName);
+
+
+                        if (file.Length > 0)
                         {
-                            await file.CopyToAsync(stream);
+                            using (var stream = new FileStream(path, FileMode.Create))
+                            {
+                                await file.CopyToAsync(stream);
+                            }
                         }
+
+                        param.FileUrl = Path.Combine("/UploadFiles", guid, fileName);
+                        param.HaveExternalUrl = false;
+                    }
+                    else
+                    {
+                        param.FileUrl = fileExternalUrl;
+                        param.HaveExternalUrl = true;
                     }
 
-                    if (!string.IsNullOrEmpty(picurl))
+                    if (!string.IsNullOrEmpty(picurl) && !param.HaveExternalUrl)
                     {
                         System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
                     }
-
-                    param.FileUrl = Path.Combine("/UploadFiles", guid, fileName);
                 }
-
 
                 db.Update(param);
 

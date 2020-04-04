@@ -21,6 +21,7 @@ namespace SCMR_Api.Model
 
 
         public string FileUrl { get; set; }
+        public bool HaveExternalUrl { get; set; }
 		[NotMapped]
 		public string FileData { get; set; }
 		[NotMapped]
