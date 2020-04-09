@@ -226,6 +226,21 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> getProductTitle([FromBody] int id)
+        {
+            try
+            {
+                var product = await db.Products.FirstOrDefaultAsync(c => c.Id == id);
+
+                return this.DataFunction(true, product.Title);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> getIndex([FromBody] getIndexParam param)
         {
