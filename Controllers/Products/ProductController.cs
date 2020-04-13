@@ -226,6 +226,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> getProductTitle([FromBody] int id)
         {
             try
