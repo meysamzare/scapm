@@ -28,6 +28,9 @@ namespace SCMR_Api.Controllers
         {
             try
             {
+                if (titute.TituteCode == 0) {
+                    titute.TituteCode = null;
+                }
                 await db.InsTitutes.AddAsync(titute);
 
                 await db.SaveChangesAsync();
@@ -56,6 +59,10 @@ namespace SCMR_Api.Controllers
                 if (await isInChildTitute(titute.Id, titute.TituteCode))
                 {
                     return this.UnSuccessFunction("این آموزشگاه نمیتواند انتخاب شود C2");
+                }
+
+                if (titute.TituteCode == 0) {
+                    titute.TituteCode = null;
                 }
 
                 tit.Name = titute.Name;
@@ -226,6 +233,10 @@ namespace SCMR_Api.Controllers
                 if (id != 0)
                 {
                     var tit = await db.InsTitutes.SingleAsync(c => c.Id == id);
+
+                    if (tit.TituteCode == null) {
+                        tit.TituteCode = 0;
+                    }
 
                     return this.DataFunction(true, tit);
                 }
