@@ -1162,7 +1162,7 @@ namespace SCMR_Api.Controllers
 
                 using (var package = new ExcelPackage())
                 {
-                    var worksheet = package.Workbook.Worksheets.Add("Sheet1");
+                    var worksheet = package.Workbook.Worksheets.Add(cat.Title);
                     worksheet.DefaultColWidth = 20;
                     worksheet.DefaultRowHeight = 20;
 
@@ -1175,7 +1175,7 @@ namespace SCMR_Api.Controllers
                     worksheet.Cells[1, 6].Value = "واحد";
                     worksheet.Cells[1, 7].Value = "نمونه برگ";
 
-                    var apiurl = "http://api.taha.sch.ir";
+                    var apiurl = _config["Sites:Self"];
 
                     foreach (var (attr, index) in attrs.OrderBy(c => c.Order).WithIndex())
                     {
