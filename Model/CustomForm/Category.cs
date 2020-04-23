@@ -84,7 +84,7 @@ namespace SCMR_Api.Model
         public string License { get; set; }
         public bool haveLicense => !string.IsNullOrWhiteSpace(License);
 
-
+        public bool IsPined { get; set; }
 
         [ForeignKey("ParentId")]
         public virtual Category ParentCategory { get; set; }

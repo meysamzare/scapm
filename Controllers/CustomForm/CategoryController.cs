@@ -314,6 +314,42 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> GetAllPined()
+        {
+            try
+            {
+                var catList = await db.Categories
+                    .Where(c => c.IsPined)
+                .ToListAsync();
+
+                return this.SuccessFunction(data: catList);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> togglePin([FromBody] int id)
+        {
+            try
+            {
+                var cat = await db.Categories.FirstOrDefaultAsync(c => c.Id == id);
+
+                cat.IsPined = !cat.IsPined;
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> getAllIndex()
         {
@@ -410,7 +446,7 @@ namespace SCMR_Api.Controllers
                 }
                 else
                 {
-                    cls = cls.OrderBy(c => c.Id);
+                    cls = cls.OrderByDescending(c => c.IsPined);
                 }
 
                 cls = cls.Skip((getparams.pageIndex - 1) * getparams.pageSize);
