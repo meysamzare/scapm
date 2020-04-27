@@ -5,8 +5,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SCMR_Api.Model;
+using Newtonsoft.Json;
+using System.Globalization;
+using System.IO;
+using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
+using MD.PersianDateTime.Core;
 
 namespace SCMR_Api.Controllers
 {
@@ -18,38 +22,62 @@ namespace SCMR_Api.Controllers
         public Data.DbContext db;
         private IHostingEnvironment hostingEnvironment;
         private IHttpContextAccessor accessor;
+        private IConfiguration _config;
 
-        public LogController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment, IHttpContextAccessor _accessor)
+        public LogController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment, IConfiguration config, IHttpContextAccessor _accessor)
         {
             db = _db;
             hostingEnvironment = _hostingEnvironment;
             accessor = _accessor;
+            _config = config;
         }
 
 
         [HttpPost]
         [AllowAnonymous]
         [DisableRequestSizeLimit]
-        public async Task<IActionResult> setLog([FromBody] setLogParam setLogParam)
+        public async Task<IActionResult> setLog([FromBody] ILog log)
         {
             try
             {
-                SystemLog log = new SystemLog
+                var date = DateTime.Now;
+                var path = _getLogPath(date);
+
+                using (var stream = GetLogFileStream(path))
                 {
-                    Date = DateTime.Now,
-                    agentId = setLogParam.agentId,
-                    agentName = setLogParam.agentName,
-                    agnetType = setLogParam.agentType,
-                    Desc = setLogParam.desc,
-                    Event = setLogParam.ev,
-                    Ip = accessor.HttpContext.Connection.RemoteIpAddress.ToString(),
-                    LogSource = setLogParam.logSource
-                };
+                    using (var reader = new StreamReader(stream))
+                    {
+                        using (var writer = new StreamWriter(stream))
+                        {
+                            string json = await reader.ReadToEndAsync();
+                            var existsLogs = JsonConvert.DeserializeObject<List<ILog>>(json);
 
-                await db.SystemLogs.AddAsync(log);
+                            if (existsLogs == null)
+                            {
+                                existsLogs = new List<ILog>();
+                            }
 
-                await db.SaveChangesAsync();
+                            long lastId = 0;
 
+                            if (existsLogs.Count != 0)
+                            {
+                                lastId = existsLogs.Last().Id;
+                            }
+
+                            log.Id = lastId + 1;
+
+                            log.Ip = accessor.HttpContext.Connection.RemoteIpAddress.ToString();
+                            log.Date = date;
+                            log.dateString = date.ToPersianDateWithTime();
+
+                            existsLogs.Add(log);
+
+                            stream.SetLength(0);
+
+                            await writer.WriteLineAsync(JsonConvert.SerializeObject(existsLogs));
+                        }
+                    }
+                }
                 return this.SuccessFunction();
             }
             catch (System.Exception e)
@@ -72,114 +100,145 @@ namespace SCMR_Api.Controllers
 
                 var query = getparams.q;
 
-                var sl = db.SystemLogs.AsQueryable();
+                var logsWithDate = await getAllLogs();
 
+                if (param.dateStart.HasValue)
+                {
+                    logsWithDate = logsWithDate.Where(c => c.date >= param.dateStart.Value).ToList();
+                }
+
+                if (param.dateEnd.HasValue)
+                {
+                    logsWithDate = logsWithDate.Where(c => c.date <= param.dateEnd.Value).ToList();
+                }
+
+                var logs = logsWithDate.SelectMany(c => c.logs);
 
                 if (!string.IsNullOrWhiteSpace(query))
                 {
-                    sl = sl.Where(c => c.Event.Contains(query) || c.Desc.Contains(query) || c.Ip.Contains(query) || c.agentName.Contains(query) ||
-                                    c.agnetType.Contains(query) || c.agentId.ToString().Contains(query) || c.LogSource.Contains(query));
+                    logs = logs.Where(c => c.Event.Contains(query) || c.Table.Contains(query) || c.Ip.Contains(query) || c.agentName.Contains(query) ||
+                                    c.agentType.Contains(query) || c.agentId.ToString().Contains(query) || c.LogSource.Contains(query));
                 }
 
                 if (!string.IsNullOrEmpty(param.selectedEvent))
                 {
-                    sl = sl.Where(c => c.Event == param.selectedEvent);
+                    logs = logs.Where(c => c.Type == param.selectedEvent);
                 }
                 if (!string.IsNullOrEmpty(param.selectedAgentType))
                 {
-                    sl = sl.Where(c => c.agnetType == param.selectedAgentType);
+                    logs = logs.Where(c => c.agentType == param.selectedAgentType);
                 }
                 if (!string.IsNullOrEmpty(param.selectedLogSource))
                 {
-                    sl = sl.Where(c => c.LogSource == param.selectedLogSource);
+                    logs = logs.Where(c => c.LogSource == param.selectedLogSource);
+                }
+                if (!string.IsNullOrEmpty(param.table))
+                {
+                    logs = logs.Where(c => c.Table == param.table);
+                }
+                if (!string.IsNullOrEmpty(param.searchId))
+                {
+                    logs = logs.Where(c =>
+                    {
+                        if (c.TableObjectIds == null)
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            return c.TableObjectIds.Select(l => l.ToString()).Contains(param.searchId);
+                        }
+                    });
                 }
 
-                count = sl.Count();
+                count = logs.Count();
 
 
                 if (getparams.direction.Equals("asc"))
                 {
                     if (getparams.sort.Equals("id"))
                     {
-                        sl = sl.OrderBy(c => c.Id);
+                        logs = logs.OrderBy(c => c.Id);
                     }
                     if (getparams.sort.Equals("event"))
                     {
-                        sl = sl.OrderBy(c => c.Event);
+                        logs = logs.OrderBy(c => c.Type);
                     }
                     if (getparams.sort.Equals("logSource"))
                     {
-                        sl = sl.OrderBy(c => c.LogSource);
+                        logs = logs.OrderBy(c => c.LogSource);
                     }
                     if (getparams.sort.Equals("agentType"))
                     {
-                        sl = sl.OrderBy(c => c.agnetType);
+                        logs = logs.OrderBy(c => c.agentType);
                     }
                     if (getparams.sort.Equals("agent"))
                     {
-                        sl = sl.OrderBy(c => c.agentName).ThenBy(c => c.agentId);
+                        logs = logs.OrderBy(c => c.agentName).ThenBy(c => c.agentId);
                     }
                     if (getparams.sort.Equals("ip"))
                     {
-                        sl = sl.OrderBy(c => c.Ip);
+                        logs = logs.OrderBy(c => c.Ip);
                     }
                     if (getparams.sort.Equals("date"))
                     {
-                        sl = sl.OrderBy(c => c.Date);
+                        logs = logs.OrderBy(c => c.Date);
                     }
                 }
                 else if (getparams.direction.Equals("desc"))
                 {
                     if (getparams.sort.Equals("id"))
                     {
-                        sl = sl.OrderByDescending(c => c.Id);
+                        logs = logs.OrderByDescending(c => c.Id);
                     }
                     if (getparams.sort.Equals("event"))
                     {
-                        sl = sl.OrderByDescending(c => c.Event);
+                        logs = logs.OrderByDescending(c => c.Event);
                     }
                     if (getparams.sort.Equals("logSource"))
                     {
-                        sl = sl.OrderByDescending(c => c.LogSource);
+                        logs = logs.OrderByDescending(c => c.LogSource);
                     }
                     if (getparams.sort.Equals("agentType"))
                     {
-                        sl = sl.OrderByDescending(c => c.agnetType);
+                        logs = logs.OrderByDescending(c => c.agentType);
                     }
                     if (getparams.sort.Equals("agent"))
                     {
-                        sl = sl.OrderByDescending(c => c.agentName).ThenByDescending(c => c.agentId);
+                        logs = logs.OrderByDescending(c => c.agentName).ThenByDescending(c => c.agentId);
                     }
                     if (getparams.sort.Equals("ip"))
                     {
-                        sl = sl.OrderByDescending(c => c.Ip);
+                        logs = logs.OrderByDescending(c => c.Ip);
                     }
                     if (getparams.sort.Equals("date"))
                     {
-                        sl = sl.OrderByDescending(c => c.Date);
+                        logs = logs.OrderByDescending(c => c.Date);
                     }
                 }
                 else
                 {
-                    sl = sl.OrderByDescending(c => c.Date);
+                    logs = logs.OrderByDescending(c => c.Date);
                 }
 
-                sl = sl.Skip((getparams.pageIndex - 1) * getparams.pageSize);
-                sl = sl.Take(getparams.pageSize);
+                logs = logs.Skip((getparams.pageIndex - 1) * getparams.pageSize);
+                logs = logs.Take(getparams.pageSize);
 
-                var q = await sl
-                    .Select(c => new
+                var q = logs
+                    .Select(c => new ILog
                     {
                         Id = c.Id,
-                        dateString = c.Date.ToPersianDateWithTime(),
+                        dateString = c.dateString,
+                        Date = c.Date,
                         agentId = c.agentId,
                         agentName = c.agentName,
-                        agnetType = c.agnetType,
-                        Event = c.Event,
+                        agentType = c.agentType,
+                        Event = c.Type,
+                        Table = c.Table,
                         Ip = c.Ip,
                         LogSource = c.LogSource
                     })
-                .ToListAsync();
+                .ToList();
 
                 return Json(new jsondata
                 {
@@ -195,13 +254,24 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> getDesc([FromBody] Guid id)
+        public async Task<IActionResult> getDesc([FromBody] getDescParam param)
         {
             try
             {
-                var log = await db.SystemLogs.FirstOrDefaultAsync(c => c.Id == id);
+                var logs = await getLogsOnDate(param.date);
 
-                return this.DataFunction(true, log.Desc);
+                var log = logs.FirstOrDefault(c => c.Id == param.id);
+
+                var content = 
+                    "\n\n Type is: " + log.Type + " \n\n\n" 
+                    + "Event is: " + log.Event + " \n\n\n"
+                    + "Related Ids: \n " + getObjectArreyString(log.TableObjectIds) + " \n\n\n"
+                    + "Object is: \n " + log.Object + " \n\n\n"
+                    + "Old Object was: \n " + log.OldObject + " \n\n\n"
+                    + "Deleted Object is: \n " + log.DeleteObjects + " \n\n\n"
+                    + "Response Data is: \n" + log.ResponseData;
+
+                return this.DataFunction(true, content);
             }
             catch (System.Exception e)
             {
@@ -209,8 +279,87 @@ namespace SCMR_Api.Controllers
             }
         }
 
+        private string getObjectArreyString(object[] obj)
+        {
+            if (obj == null)
+            {
+                return "";
+            }
 
-        
+            return string.Join(" & ", obj.Select(c => c.ToString()).ToList());
+        }
+
+
+        #region logOprations
+
+        private async Task<List<ILog>> _ReadLogAsync(string path)
+        {
+            return JsonConvert.DeserializeObject<List<ILog>>(await System.IO.File.ReadAllTextAsync(path));
+        }
+
+        private FileStream GetLogFileStream(string path)
+        {
+            return System.IO.File.Open(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
+        }
+
+        private string _getLogPath(DateTime date)
+        {
+            PersianCalendar pc = new PersianCalendar();
+
+            var persianDateString = pc.GetYear(date).ToString() + pc.GetMonth(date).ToString("0#") + pc.GetDayOfMonth(date).ToString("0#");
+
+            var logPath = Path.Combine(hostingEnvironment.ContentRootPath, _config["Paths:Logs"], "log_" + persianDateString + ".json");
+
+            return logPath;
+        }
+
+        private async Task<List<ILog>> getLogsOnDate(DateTime date)
+        {
+            var path = _getLogPath(date);
+
+            var logs = await _ReadLogAsync(path);
+
+            return logs;
+        }
+
+        private async Task<List<ILogWithDate>> getAllLogs()
+        {
+            var logsPath = Path.Combine(hostingEnvironment.ContentRootPath, _config["Paths:Logs"]);
+
+            var allLogsNameList = Directory.EnumerateFiles(logsPath, "*", SearchOption.AllDirectories)
+                .Select(Path.GetFileName)
+            .Where(c => c.StartsWith("log_")).ToList();
+
+            var allLogsList = new List<ILogWithDate>();
+
+            foreach (var path in allLogsNameList)
+            {
+                var logPath = Path.Combine(logsPath, path);
+
+                var purePersianDate = int.Parse(path.Split('.')[0].Split('_')[1]);
+
+                var dateTime = PersianDateTime.Parse(purePersianDate).ToDateTime();
+
+                var logs = await _ReadLogAsync(logPath);
+
+                allLogsList.Add(new ILogWithDate
+                {
+                    date = dateTime,
+                    logs = logs
+                });
+            }
+            return allLogsList;
+        }
+
+        #endregion
+
+    }
+
+    public class getDescParam
+    {
+        public DateTime date { get; set; }
+
+        public long id { get; set; }
     }
 
     public class GetLogParam
@@ -220,6 +369,10 @@ namespace SCMR_Api.Controllers
         public string selectedEvent { get; set; }
         public string selectedLogSource { get; set; }
         public string selectedAgentType { get; set; }
+        public DateTime? dateStart { get; set; }
+        public DateTime? dateEnd { get; set; }
+        public string searchId { get; set; }
+        public string table { get; set; }
     }
 
     public class setLogParam
@@ -230,5 +383,32 @@ namespace SCMR_Api.Controllers
         public string desc { get; set; }
         public string ev { get; set; }
         public string logSource { get; set; }
+    }
+
+    public class ILogWithDate
+    {
+        public DateTime date { get; set; }
+        public List<ILog> logs { get; set; }
+    }
+
+    public class ILog
+    {
+        public long Id { get; set; }
+        public string Type { get; set; }
+        public DateTime Date { get; set; }
+        public string dateString { get; set; }
+        public int agentId { get; set; }
+        public string agentType { get; set; }
+        public string agentName { get; set; }
+        public object Object { get; set; }
+        public object OldObject { get; set; }
+        public object DeleteObjects { get; set; }
+        public string Table { get; set; }
+        public object[] TableObjectIds { get; set; }
+        public object ResponseData { get; set; }
+        public string LogSource { get; set; }
+        public string Ip { get; set; }
+        public string Desc { get; set; }
+        public string Event { get; set; }
     }
 }
