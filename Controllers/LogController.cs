@@ -11,6 +11,7 @@ using System.IO;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
 using MD.PersianDateTime.Core;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace SCMR_Api.Controllers
 {
@@ -23,14 +24,18 @@ namespace SCMR_Api.Controllers
         private IHostingEnvironment hostingEnvironment;
         private IHttpContextAccessor accessor;
         private IConfiguration _config;
+        private IServiceScopeFactory _logScope;
 
-        public LogController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment, IConfiguration config, IHttpContextAccessor _accessor)
+        public LogController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment, IConfiguration config, IHttpContextAccessor _accessor, IServiceScopeFactory logScope)
         {
             db = _db;
             hostingEnvironment = _hostingEnvironment;
             accessor = _accessor;
             _config = config;
+            _logScope = logScope;
         }
+
+        private static Object lock_Obj = new Object();
 
 
         [HttpPost]
@@ -43,38 +48,48 @@ namespace SCMR_Api.Controllers
                 var date = DateTime.Now;
                 var path = _getLogPath(date);
 
-                using (var stream = GetLogFileStream(path))
+                var settings = await getLogSettingsAsync();
+
+                if (!settings.saveResponseData)
                 {
-                    using (var reader = new StreamReader(stream))
+                    log.ResponseData = "log Response Data is Off...";
+                }
+
+                lock (lock_Obj)
+                {
+                    using (var stream = GetLogFileStream(path))
                     {
-                        using (var writer = new StreamWriter(stream))
+                        using (var reader = new StreamReader(stream))
                         {
-                            string json = await reader.ReadToEndAsync();
-                            var existsLogs = JsonConvert.DeserializeObject<List<ILog>>(json);
-
-                            if (existsLogs == null)
+                            using (var writer = new StreamWriter(stream))
                             {
-                                existsLogs = new List<ILog>();
+                                string json = reader.ReadToEnd();
+                                var existsLogs = JsonConvert.DeserializeObject<List<ILog>>(json);
+
+                                if (existsLogs == null)
+                                {
+                                    existsLogs = new List<ILog>();
+                                }
+
+                                long lastId = 0;
+
+                                if (existsLogs.Count != 0)
+                                {
+                                    lastId = existsLogs.Last().Id;
+                                }
+
+                                log.Id = lastId + 1;
+
+                                log.Ip = accessor.HttpContext.Connection.RemoteIpAddress.ToString();
+                                log.Date = date;
+                                log.dateString = date.ToPersianDateWithTime();
+
+                                existsLogs.Add(log);
+
+                                stream.SetLength(0);
+
+                                writer.WriteLine(JsonConvert.SerializeObject(existsLogs));
                             }
-
-                            long lastId = 0;
-
-                            if (existsLogs.Count != 0)
-                            {
-                                lastId = existsLogs.Last().Id;
-                            }
-
-                            log.Id = lastId + 1;
-
-                            log.Ip = accessor.HttpContext.Connection.RemoteIpAddress.ToString();
-                            log.Date = date;
-                            log.dateString = date.ToPersianDateWithTime();
-
-                            existsLogs.Add(log);
-
-                            stream.SetLength(0);
-
-                            await writer.WriteLineAsync(JsonConvert.SerializeObject(existsLogs));
                         }
                     }
                 }
@@ -82,12 +97,12 @@ namespace SCMR_Api.Controllers
             }
             catch (System.Exception e)
             {
-                return this.CatchFunction(e);
+                return this.CatchFunction(e, true);
             }
         }
 
         [HttpPost]
-        public async Task<IActionResult> Get([FromBody] GetLogParam param)
+        public IActionResult Get([FromBody] GetLogParam param)
         {
             try
             {
@@ -100,7 +115,7 @@ namespace SCMR_Api.Controllers
 
                 var query = getparams.q;
 
-                var logsWithDate = await getAllLogs();
+                var logsWithDate = getAllLogs();
 
                 if (param.dateStart.HasValue)
                 {
@@ -262,8 +277,8 @@ namespace SCMR_Api.Controllers
 
                 var log = logs.FirstOrDefault(c => c.Id == param.id);
 
-                var content = 
-                    "\n\n Type is: " + log.Type + " \n\n\n" 
+                var content =
+                    "\n\n Type is: " + log.Type + " \n\n\n"
                     + "Event is: " + log.Event + " \n\n\n"
                     + "Related Ids: \n " + getObjectArreyString(log.TableObjectIds) + " \n\n\n"
                     + "Object is: \n " + log.Object + " \n\n\n"
@@ -297,6 +312,11 @@ namespace SCMR_Api.Controllers
             return JsonConvert.DeserializeObject<List<ILog>>(await System.IO.File.ReadAllTextAsync(path));
         }
 
+        private List<ILog> _ReadLog(string path)
+        {
+            return JsonConvert.DeserializeObject<List<ILog>>(System.IO.File.ReadAllText(path));
+        }
+
         private FileStream GetLogFileStream(string path)
         {
             return System.IO.File.Open(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
@@ -313,6 +333,13 @@ namespace SCMR_Api.Controllers
             return logPath;
         }
 
+        private async Task<ILogSetting> getLogSettingsAsync()
+        {
+            var logPath = Path.Combine(hostingEnvironment.ContentRootPath, _config["Paths:Logs"], "settings.json");
+
+            return JsonConvert.DeserializeObject<ILogSetting>(await System.IO.File.ReadAllTextAsync(logPath));
+        }
+
         private async Task<List<ILog>> getLogsOnDate(DateTime date)
         {
             var path = _getLogPath(date);
@@ -322,7 +349,7 @@ namespace SCMR_Api.Controllers
             return logs;
         }
 
-        private async Task<List<ILogWithDate>> getAllLogs()
+        private List<ILogWithDate> getAllLogs()
         {
             var logsPath = Path.Combine(hostingEnvironment.ContentRootPath, _config["Paths:Logs"]);
 
@@ -340,7 +367,7 @@ namespace SCMR_Api.Controllers
 
                 var dateTime = PersianDateTime.Parse(purePersianDate).ToDateTime();
 
-                var logs = await _ReadLogAsync(logPath);
+                var logs = _ReadLog(logPath);
 
                 allLogsList.Add(new ILogWithDate
                 {
@@ -389,6 +416,11 @@ namespace SCMR_Api.Controllers
     {
         public DateTime date { get; set; }
         public List<ILog> logs { get; set; }
+    }
+
+    public class ILogSetting
+    {
+        public bool saveResponseData { get; set; }
     }
 
     public class ILog

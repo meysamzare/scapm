@@ -61,7 +61,7 @@ namespace SCMR_Api
             });
         }
 
-        public static JsonResult CatchFunction(this Controller c, Exception e)
+        public static JsonResult CatchFunction(this Controller c, Exception e, bool success = false)
         {
             int line = 0;
 
@@ -109,7 +109,7 @@ namespace SCMR_Api
 
             return c.Json(new jsondata
             {
-                success = false,
+                success = success,
                 message = "برنامه با خطا مواجه شده است " + e.Message + " l:" + line,
                 type = "error"
             });

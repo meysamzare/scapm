@@ -108,6 +108,9 @@ namespace SCMR_Api
                     (options => options.UseSqlServer(Configuration["ConnectionStrings:Base"]));
 
             services.AddHttpContextAccessor();
+
+            services.AddHostedService<TimedLogService>();
+            services.AddScoped<IScopedLogProcessingService, ScopedLogProcessingService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
