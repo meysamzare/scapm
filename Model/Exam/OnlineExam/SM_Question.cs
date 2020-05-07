@@ -9,10 +9,7 @@ namespace SCMR_Api.Model
     [Table("sm.Questions")]
     public class Question
     {
-        public Question()
-        {
-
-        }
+        public Question() { }
 
 
         [Key]
@@ -60,6 +57,10 @@ namespace SCMR_Api.Model
         public string Desc2 { get; set; }
 
 
+        public int QuestionCategoryId { get; set; }        
+
+        [ForeignKey("QuestionCategoryId")]
+        public virtual QuestionCategory QuestionCategory { get; set; }
 
 
 
@@ -71,6 +72,9 @@ namespace SCMR_Api.Model
 
 
         public virtual IList<QuestionOption> QuestionOptions { get; set; }
+        
+        [NotMapped]
+        public virtual List<OnlineExamQuestion> OnlineExamQuestions { get; set; }
 
 
         public string gradeName

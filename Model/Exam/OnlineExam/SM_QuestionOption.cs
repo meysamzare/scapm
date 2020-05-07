@@ -9,11 +9,7 @@ namespace SCMR_Api.Model
     [Table("sm.QuestionOptions")]
     public class QuestionOption
     {
-        public QuestionOption()
-        {
-
-        }
-
+        public QuestionOption() { }
 
         [Key]
         [Column("QueOp.id")]
@@ -27,10 +23,11 @@ namespace SCMR_Api.Model
         public bool IsTrue { get; set; }
 
 
-
         [Column("QueOp.Questionid")]
         public int QuestionId { get; set; }
 
+        [NotMapped]
+        public virtual List<OnlineExamAnswer> OnlineExamAnswers { get; set; }
 
 
         [ForeignKey("QuestionId")]

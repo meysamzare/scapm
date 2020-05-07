@@ -87,6 +87,10 @@ namespace SCMR_Api.Model
 
         public virtual IList<ClassBook> ClassBooks { get; set; }
 
+        [NotMapped]
+        public virtual List<OnlineExamAnswer> OnlineExamAnswers { get; set; }
+
+
 
         public bool isStudentInfoComplated
         {

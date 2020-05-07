@@ -47,6 +47,9 @@ namespace SCMR_Api.Model
 
         public virtual IList<ClassBook> ClassBooks { get; set; }
 
+        [NotMapped]
+        public virtual IList<OnlineExam> OnlineExams { get; set; }
+
 
         public string gradeName
         {
