@@ -1,18 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace SCMR_Api.Model
 {
     public class ItemAttribute
     {
-        public ItemAttribute()
-        {
-
-        }
+        public ItemAttribute() { }
 
         [Key]
         public int Id { get; set; }
@@ -25,6 +18,8 @@ namespace SCMR_Api.Model
 
         public string AttributeFilePath { get; set; }
 
+
+        public bool isAttributeHaveOption => Attribute == null ? false : Attribute.haveAnyOption;
 
 
         [ForeignKey("AttributeId")]

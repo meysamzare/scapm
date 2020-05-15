@@ -52,6 +52,12 @@ namespace SCMR_Api.Model
         public virtual IList<ItemAttribute> ItemAttribute { get; set; }
 
 
+        public virtual List<AttributeOption> AttributeOptions { get; set; }
+
+        public bool haveAnyOption => AttributeOptions == null ? false : AttributeOptions.Any();
+        public bool haveAnyTrueOption => AttributeOptions == null ? false : AttributeOptions.Any(c => c.IsTrue);
+
+        public double Score { get; set; }
 
         public int OrderInt
         {

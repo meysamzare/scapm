@@ -22,32 +22,14 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Add([FromBody] AddAttrParam addAttrParam)
+        public async Task<IActionResult> Add([FromBody] AddAttrParam param)
         {
             try
             {
-                var Attr = new Model.Attribute
-                {
-                    Title = addAttrParam.title,
-                    CategoryId = addAttrParam.categoryId,
-                    UnitId = addAttrParam.unitId,
-                    AttrType = (AttrType)addAttrParam.attrTypeInt,
-                    Desc = addAttrParam.desc,
-                    Values = addAttrParam.values,
-                    IsUniq = addAttrParam.isUniq,
-                    Order = addAttrParam.orderInt,
-                    IsInClient = addAttrParam.IsInClient,
-                    IsInShowInfo = addAttrParam.IsInShowInfo,
-                    OrderInInfo = addAttrParam.OrderInInfo,
-                    IsInSearch = addAttrParam.IsInSearch,
-                    Placeholder = addAttrParam.placeholder,
-                    IsRequired = addAttrParam.isRequired,
-                    IsMeliCode = addAttrParam.isMeliCode,
-                    MaxFileSize = addAttrParam.maxFileSize
-                };
+                var attr = param.attr;
+                attr.AttributeOptions = param.options.ToList();
 
-                db.Attributes.Add(Attr);
-
+                db.Attributes.Add(attr);
 
                 await db.SaveChangesAsync();
 
@@ -64,24 +46,7 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var attr = await db.Attributes.SingleAsync(c => c.Id == addAttrParam.id);
-
-                attr.Title = addAttrParam.title;
-                attr.CategoryId = addAttrParam.categoryId;
-                attr.UnitId = addAttrParam.unitId;
-                attr.AttrType = (AttrType)addAttrParam.attrTypeInt;
-                attr.Desc = addAttrParam.desc;
-                attr.Values = addAttrParam.values;
-                attr.IsUniq = addAttrParam.isUniq;
-                attr.Order = addAttrParam.orderInt;
-                attr.IsInClient = addAttrParam.IsInClient;
-                attr.IsInShowInfo = addAttrParam.IsInShowInfo;
-                attr.OrderInInfo = addAttrParam.OrderInInfo;
-                attr.IsInSearch = addAttrParam.IsInSearch;
-                attr.Placeholder = addAttrParam.placeholder;
-                attr.IsRequired = addAttrParam.isRequired;
-                attr.IsMeliCode = addAttrParam.isMeliCode;
-                attr.MaxFileSize = addAttrParam.maxFileSize;
+                db.Update(addAttrParam.attr);
 
                 await db.SaveChangesAsync();
 
@@ -258,13 +223,17 @@ namespace SCMR_Api.Controllers
                     if (id != 0)
                     {
 
-                        var attr = await db.Attributes.SingleAsync(c => c.Id == id);
+                        var attr = await db.Attributes
+                            .Include(c => c.AttributeOptions)
+                            .Include(c => c.ItemAttribute)
+                        .SingleAsync(c => c.Id == id);
                         if (attr == null)
                         {
                             return this.UnSuccessFunction("Data Not Found", "error");
                         }
 
-                        db.ItemAttributes.RemoveRange(db.ItemAttributes.Where(c => c.AttributeId == attr.Id).ToList());
+                        db.ItemAttributes.RemoveRange(attr.ItemAttribute.ToList());
+                        db.AttributeOptions.RemoveRange(attr.AttributeOptions);
 
                         db.Attributes.Remove(attr);
                     }
@@ -294,7 +263,24 @@ namespace SCMR_Api.Controllers
             {
                 var attrlist = await getAttrForCat(catId);
 
-                return this.DataFunction(true, attrlist.OrderBy(c => c.Order).ThenBy(c => c.Id));
+                var attr = attrList.OrderBy(c => c.Order).ThenBy(c => c.Id).Select(c => new
+                {
+                    Id = c.Id,
+                    AttrTypeInt = c.AttrTypeToInt(c.AttrType),
+                    UnitId = c.UnitId,
+                    IsRequired = c.IsRequired,
+                    IsUniq = c.IsUniq,
+                    Title = c.Title,
+                    Placeholder = c.Placeholder,
+                    Desc = c.Desc,
+                    Values = c.Values,
+                    MaxFileSize = c.MaxFileSize,
+                    CategoryId = c.CategoryId,
+                    AttributeOptions = c.AttributeOptions == null ? new List<AttributeOption>() : c.AttributeOptions.ToList(),
+                    Score = c.Score
+                });
+
+                return this.DataFunction(true, attr);
             }
             catch (System.Exception e)
             {
@@ -309,7 +295,24 @@ namespace SCMR_Api.Controllers
             {
                 var attrlist = await getAttrForCat(catId);
 
-                return this.DataFunction(true, attrlist.Where(c => c.IsInClient == false).OrderBy(c => c.Order).ThenBy(c => c.Id));
+                var attr = attrList.Where(c => c.IsInClient == false).OrderBy(c => c.Order).ThenBy(c => c.Id).Select(c => new
+                {
+                    Id = c.Id,
+                    AttrTypeInt = c.AttrTypeToInt(c.AttrType),
+                    UnitId = c.UnitId,
+                    IsRequired = c.IsRequired,
+                    IsUniq = c.IsUniq,
+                    Title = c.Title,
+                    Placeholder = c.Placeholder,
+                    Desc = c.Desc,
+                    Values = c.Values,
+                    MaxFileSize = c.MaxFileSize,
+                    CategoryId = c.CategoryId,
+                    Score = c.Score,
+                    AttributeOptions = c.AttributeOptions == null ? new List<AttributeOption>() : c.AttributeOptions.ToList()
+                });
+
+                return this.DataFunction(true, attr);
             }
             catch (System.Exception e)
             {
@@ -327,7 +330,7 @@ namespace SCMR_Api.Controllers
             {
                 var attrlist = await getAttrForCat(catId);
 
-                var attrListSelected = attrlist.Where(c => c.IsInClient == true).OrderBy(c => c.Order).ThenBy(c => c.Id)
+                var attrListSelected = attrlist.Where(c => c.IsInClient == true).OrderBy(c => c.UnitId).ThenBy(c => c.Order)
                 .Select(c => new
                 {
                     Id = c.Id,
@@ -339,7 +342,8 @@ namespace SCMR_Api.Controllers
                     Placeholder = c.Placeholder,
                     Desc = c.Desc,
                     Values = c.Values,
-                    MaxFileSize = c.MaxFileSize
+                    MaxFileSize = c.MaxFileSize,
+                    AttributeOptions = c.AttributeOptions == null ? new List<AttributeOption>() : c.AttributeOptions.Select(option => new AttributeOption { Id = option.Id, Title = option.Title }).ToList()
                 })
                 .ToList();
 
@@ -355,7 +359,11 @@ namespace SCMR_Api.Controllers
 
         public async Task<IEnumerable<Model.Attribute>> getAttrForCat(int cat1)
         {
-            var cat = await db.Categories.Include(c => c.Attributes).Include(c => c.ParentCategory).SingleAsync(c => c.Id == cat1);
+            var cat = await db.Categories
+                .Include(c => c.Attributes)
+                    .ThenInclude(c => c.AttributeOptions)
+                .Include(c => c.ParentCategory)
+            .SingleAsync(c => c.Id == cat1);
             if (cat.Attributes.Count != 0)
             {
                 foreach (var i in cat.Attributes)
@@ -376,7 +384,101 @@ namespace SCMR_Api.Controllers
 
 
 
+        [HttpPost]
+        public async Task<IActionResult> AddAttributeOption([FromBody] AttributeOption option)
+        {
+            try
+            {
+                await db.AttributeOptions.AddAsync(option);
 
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoveAttributeOption([FromBody] AttributeOption option)
+        {
+            try
+            {
+                var attributeOption = await db.AttributeOptions.FirstOrDefaultAsync(c => c.Id == option.Id);
+
+                db.AttributeOptions.Remove(attributeOption);
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> EditAttributeOption([FromBody] AttributeOption option)
+        {
+            try
+            {
+                var attributeOption = await db.AttributeOptions.FirstOrDefaultAsync(c => c.Id == option.Id);
+
+                attributeOption.Title = option.Title;
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> getAttributeOptions([FromBody] int attrId)
+        {
+            try
+            {
+                var attrOptions = await db.AttributeOptions.Where(c => c.AttributeId == attrId).ToListAsync();
+
+                return this.DataFunction(true, attrOptions);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> setTrueOption([FromBody] AttributeOption option)
+        {
+            try
+            {
+                var isTrue = !option.IsTrue;
+
+                await db.AttributeOptions.Where(c => c.AttributeId == option.AttributeId).ForEachAsync(attrOption =>
+                {
+                    attrOption.IsTrue = false;
+                });
+
+                var attributeOption = await db.AttributeOptions.FirstOrDefaultAsync(c => c.Id == option.Id);
+
+                attributeOption.IsTrue = isTrue;
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
 
     }
 
@@ -389,36 +491,8 @@ namespace SCMR_Api.Controllers
 
     public class AddAttrParam
     {
-        public int id { get; set; }
+        public Model.Attribute attr { get; set; }
 
-        public string title { get; set; }
-
-        public int attrTypeInt { get; set; }
-
-        public int maxFileSize { get; set; }
-
-        public string desc { get; set; }
-
-        public int orderInt { get; set; }
-
-        public bool isUniq { get; set; }
-
-        public int categoryId { get; set; }
-
-        public int unitId { get; set; }
-
-        public string values { get; set; }
-
-        public bool isMeliCode { get; set; }
-
-        public bool IsInClient { get; set; }
-        public bool IsInShowInfo { get; set; }
-        public bool IsInSearch { get; set; }
-
-        public int OrderInInfo { get; set; }
-
-        public string placeholder { get; set; }
-        public bool isRequired { get; set; }
-
+        public AttributeOption[] options { get; set; }
     }
 }

@@ -158,6 +158,9 @@ namespace SCMR_Api.Data
         public DbSet<ItemAttribute> ItemAttributes { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Model.Attribute> Attributes { get; set; }
+
+        public DbSet<AttributeOption> AttributeOptions { get; set; }
+
         public DbSet<ChatRole> ChatRoles { get; set; }
         public DbSet<Chat> Chats { get; set; }
         public DbSet<InsTitute> InsTitutes { get; set; }

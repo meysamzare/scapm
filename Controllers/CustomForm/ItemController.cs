@@ -16,6 +16,8 @@ using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using SCMR_Api.Model;
 using Newtonsoft.Json;
+using System.Drawing;
+using System.Globalization;
 
 namespace SCMR_Api.Controllers
 {
@@ -383,22 +385,15 @@ namespace SCMR_Api.Controllers
                 {
 
                     var it = await db.Items
-                        // .Include(c => c.ItemAttribute)
                         .Include(c => c.Category)
-                        .Include(c => c.Unit)
                     .SingleAsync(c => c.Id == id);
-
-                    Categories = await db.Categories.Include(c => c.ParentCategory).Include(c => c.Attributes)
-                                            .ToListAsync();
-
-                    var attrs = await getAttrForCat(it.Category.Id);
 
                     if (it == null)
                     {
                         return this.UnSuccessFunction("Data Not Found", "error");
                     }
 
-                    return this.DataFunction(true, new { item = it, attrs = attrs.OrderBy(c => c.Order).ThenBy(c => c.Id) });
+                    return this.DataFunction(true, new { item = it });
                 }
                 else
                 {
@@ -1154,6 +1149,7 @@ namespace SCMR_Api.Controllers
                 Categories = await db.Categories
                         .Include(c => c.ParentCategory)
                         .Include(c => c.Attributes)
+                            .ThenInclude(c => c.AttributeOptions)
                     .ToListAsync();
 
                 var attrs = await getAttrForCat(catId);
@@ -1165,6 +1161,11 @@ namespace SCMR_Api.Controllers
                     var worksheet = package.Workbook.Worksheets.Add(cat.Title);
                     worksheet.DefaultColWidth = 20;
                     worksheet.DefaultRowHeight = 20;
+                    worksheet.View.RightToLeft = true;
+                    worksheet.Cells.Style.Font.Name = "B Yekan";
+                    worksheet.Cells.Style.Font.Size = 11;
+                    worksheet.Cells.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                    worksheet.Cells.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 
 
                     worksheet.Cells[1, 1].Value = "ردیف";
@@ -1174,12 +1175,13 @@ namespace SCMR_Api.Controllers
                     worksheet.Cells[1, 5].Value = "کد رهگیری";
                     worksheet.Cells[1, 6].Value = "واحد";
                     worksheet.Cells[1, 7].Value = "نمونه برگ";
+                    worksheet.Cells[1, 8].Value = "امتیاز";
 
                     var apiurl = _config["Sites:Self"];
 
-                    foreach (var (attr, index) in attrs.OrderBy(c => c.Order).WithIndex())
+                    foreach (var (attr, index) in attrs.OrderBy(c => c.UnitId).ThenBy(c => c.Order).WithIndex())
                     {
-                        worksheet.Cells[1, 7 + (index + 1)].Value = attr.Title;
+                        worksheet.Cells[1, 8 + (index + 1)].Value = attr.Title;
                     }
 
                     foreach (var (item, index) in items.WithIndex())
@@ -1191,8 +1193,9 @@ namespace SCMR_Api.Controllers
                         worksheet.Cells[1 + (index + 1), 5].Value = item.RahCode;
                         worksheet.Cells[1 + (index + 1), 6].Value = item.UnitString;
                         worksheet.Cells[1 + (index + 1), 7].Value = item.CategoryString;
+                        worksheet.Cells[1 + (index + 1), 8].Value = getTotalScoreForItem(attrs.ToList(), item.ItemAttribute.ToList());
 
-                        foreach (var (attr, i) in attrs.OrderBy(c => c.Order).WithIndex())
+                        foreach (var (attr, i) in attrs.OrderBy(c => c.UnitId).ThenBy(c => c.Order).WithIndex())
                         {
                             ItemAttribute itemAttr = null;
 
@@ -1203,44 +1206,90 @@ namespace SCMR_Api.Controllers
 
                             if (itemAttr == null)
                             {
-                                worksheet.Cells[1 + (index + 1), 7 + (i + 1)].Value = "";
+                                worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = "";
                             }
                             else
                             {
                                 if (!string.IsNullOrWhiteSpace(itemAttr.AttributeFilePath))
                                 {
-                                    worksheet.Cells[1 + (index + 1), 7 + (i + 1)].Value = apiurl + itemAttr.AttributeFilePath;
+                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = apiurl + itemAttr.AttributeFilePath;
                                 }
                                 else if (itemAttr.Attribute.AttrType == AttrType.date)
                                 {
-                                    worksheet.Cells[1 + (index + 1), 7 + (i + 1)].Value = DateTime.Parse(itemAttr.AttrubuteValue).ToPersianDate();
+                                    var value = "";
+
+                                    try
+                                    {
+                                        value = DateTime.Parse(itemAttr.AttrubuteValue).ToPersianDate();
+                                    }
+                                    catch { }
+
+                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = value;
+                                }
+                                else if (itemAttr.Attribute.AttrType == AttrType.radiobutton || itemAttr.Attribute.AttrType == AttrType.combobox)
+                                {
+                                    var attrOptions = itemAttr.Attribute.AttributeOptions;
+
+                                    var value = "";
+                                    var isTrue = false;
+                                    var haveTrue = false;
+
+                                    if (attrOptions.Count != 0)
+                                    {
+                                        haveTrue = attrOptions.Any(c => c.IsTrue);
+
+                                        if (attrOptions.Any(c => c.Id.ToString() == itemAttr.AttrubuteValue))
+                                        {
+                                            value = attrOptions.FirstOrDefault(c => c.Id.ToString() == itemAttr.AttrubuteValue).Title;
+                                        }
+                                        else
+                                        {
+                                            value = itemAttr.AttrubuteValue;
+                                        }
+
+                                        if (haveTrue)
+                                        {
+                                            isTrue = attrOptions.FirstOrDefault(c => c.IsTrue).Id.ToString() == itemAttr.AttrubuteValue;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        value = itemAttr.AttrubuteValue;
+                                    }
+
+                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = value;
+
+                                    if (haveTrue)
+                                    {
+                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Style.Fill.BackgroundColor.SetColor(isTrue ? Color.LightGreen : Color.IndianRed);
+                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].AddComment($"امتیاز این فیلد {itemAttr.Attribute.Score}", "Mabna");
+                                    }
                                 }
                                 else
                                 {
-                                    worksheet.Cells[1 + (index + 1), 7 + (i + 1)].Value = itemAttr.AttrubuteValue;
+                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = itemAttr.AttrubuteValue;
                                 }
                             }
                         }
                     }
 
-                    worksheet.View.RightToLeft = true;
-                    worksheet.Cells.Style.Font.Name = "B Yekan";
-                    worksheet.Cells.Style.Font.Size = 11;
-                    worksheet.Cells.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
-                    worksheet.Cells.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-
                     fileContents = package.GetAsByteArray();
 
                     var guid = System.Guid.NewGuid().ToString();
 
-                    var name = DateTime.Now.ToLongDateString();
+                    PersianCalendar pc = new PersianCalendar();
+                    var date = DateTime.Now;
+                    var persianDateString = pc.GetYear(date).ToString() + pc.GetMonth(date).ToString("0#") + pc.GetDayOfMonth(date).ToString("0#") + pc.GetHour(date).ToString("0#") + pc.GetMinute(date).ToString("0#") + pc.GetSecond(date).ToString("0#");
 
-                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, $"ite_" + name + ".xlsx");
+                    var name = $"{cat.Title.Trim()}_{persianDateString}";
+
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, $"Items_" + name + ".xlsx");
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
 
                     System.IO.File.WriteAllBytes(path, fileContents);
 
-                    var filepath = Path.Combine("/UploadFiles/" + guid + "/" + $"ite_" + name + ".xlsx");
+                    var filepath = Path.Combine("/UploadFiles/" + guid + "/" + $"Items_" + name + ".xlsx");
 
                     await db.SaveChangesAsync();
 
@@ -1252,6 +1301,34 @@ namespace SCMR_Api.Controllers
             {
                 return this.CatchFunction(e);
             }
+        }
+
+        private double getTotalScoreForItem(List<Model.Attribute> attributes, List<ItemAttribute> itemAttributes)
+        {
+            double score = 0;
+
+            attributes.ForEach(attr =>
+            {
+                var itemAttr = itemAttributes.FirstOrDefault(c => c.AttributeId == attr.Id);
+
+                if (itemAttr != null)
+                {
+                    if (attr.AttrType == AttrType.radiobutton || attr.AttrType == AttrType.combobox)
+                    {
+                        var attrOptions = attr.AttributeOptions;
+
+                        if (attrOptions.Count != 0 && attrOptions.Any(c => c.IsTrue))
+                        {
+                            if (attrOptions.FirstOrDefault(c => c.IsTrue).Id.ToString() == itemAttr.AttrubuteValue)
+                            {
+                                score += attr.Score;
+                            }
+                        }
+                    }
+                }
+            });
+
+            return score;
         }
 
 
@@ -1411,17 +1488,28 @@ namespace SCMR_Api.Controllers
                     items = items.OrderBy(c => c.Id);
                 }
 
-                var cat = await db.Categories.Include(c => c.Attributes).SingleAsync(c => c.Id == getparamsComplex.catId);
+                var cat = await db.Categories
+                    .Include(c => c.Attributes)
+                        .ThenInclude(c => c.AttributeOptions)
+                .SingleAsync(c => c.Id == getparamsComplex.catId);
 
-                var allitemAttrs = db.ItemAttributes.AsQueryable();
+                var allitemAttrs = db.ItemAttributes
+                    .Include(c => c.Attribute)
+                        .ThenInclude(c => c.AttributeOptions)
+                .AsQueryable();
 
                 byte[] fileContents;
 
                 using (var package = new ExcelPackage())
                 {
-                    var worksheet = package.Workbook.Worksheets.Add("Sheet1");
+                    var worksheet = package.Workbook.Worksheets.Add(cat.Title);
                     worksheet.DefaultColWidth = 20;
                     worksheet.DefaultRowHeight = 20;
+                    worksheet.View.RightToLeft = true;
+                    worksheet.Cells.Style.Font.Name = "B Yekan";
+                    worksheet.Cells.Style.Font.Size = 11;
+                    worksheet.Cells.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                    worksheet.Cells.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 
 
                     worksheet.Cells[1, 1].Value = "ردیف";
@@ -1431,12 +1519,13 @@ namespace SCMR_Api.Controllers
                     worksheet.Cells[1, 5].Value = "کد رهگیری";
                     worksheet.Cells[1, 6].Value = "واحد";
                     worksheet.Cells[1, 7].Value = "نمونه برگ";
+                    worksheet.Cells[1, 8].Value = "امتیاز";
 
-                    var apiurl = "http://api.taha.sch.ir";
+                    var apiurl = _config["Sites:Self"];
 
-                    foreach (var (attr, index) in getparamsComplex.selectedAttrs.WithIndex())
+                    foreach (var (attr, index) in getparamsComplex.selectedAttrs.OrderBy(c => c.UnitId).ThenBy(c => c.Order).WithIndex())
                     {
-                        worksheet.Cells[1, 7 + (index + 1)].Value = attr.Title;
+                        worksheet.Cells[1, 8 + (index + 1)].Value = attr.Title;
                     }
 
                     foreach (var (item, index) in items.WithIndex())
@@ -1448,8 +1537,9 @@ namespace SCMR_Api.Controllers
                         worksheet.Cells[1 + (index + 1), 5].Value = item.RahCode;
                         worksheet.Cells[1 + (index + 1), 6].Value = db.Units.Single(c => c.Id == item.UnitId).Title;
                         worksheet.Cells[1 + (index + 1), 7].Value = cat.Title;
+                        worksheet.Cells[1 + (index + 1), 8].Value = getTotalScoreForItem(getparamsComplex.selectedAttrs.ToList(), item.ItemAttribute.ToList());
 
-                        foreach (var (attr, i) in getparamsComplex.selectedAttrs.WithIndex())
+                        foreach (var (attr, i) in getparamsComplex.selectedAttrs.OrderBy(c => c.UnitId).ThenBy(c => c.Order).WithIndex())
                         {
 
                             ItemAttribute itemAttr = null;
@@ -1461,51 +1551,90 @@ namespace SCMR_Api.Controllers
 
                             if (itemAttr == null)
                             {
-                                worksheet.Cells[1 + (index + 1), 7 + (i + 1)].Value = "";
+                                worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = "";
                             }
                             else
                             {
                                 if (!string.IsNullOrWhiteSpace(itemAttr.AttributeFilePath))
                                 {
-                                    worksheet.Cells[1 + (index + 1), 7 + (i + 1)].Value = apiurl + itemAttr.AttributeFilePath;
+                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = apiurl + itemAttr.AttributeFilePath;
                                 }
                                 else if (itemAttr.Attribute.AttrType == AttrType.date)
                                 {
-                                    worksheet.Cells[1 + (index + 1), 7 + (i + 1)].Value = DateTime.Parse(itemAttr.AttrubuteValue).ToPersianDate();
+                                    var value = "";
+
+                                    try
+                                    {
+                                        value = DateTime.Parse(itemAttr.AttrubuteValue).ToPersianDate();
+                                    }
+                                    catch { }
+
+                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = value;
+                                }
+                                else if (itemAttr.Attribute.AttrType == AttrType.radiobutton || itemAttr.Attribute.AttrType == AttrType.combobox)
+                                {
+                                    var attrOptions = itemAttr.Attribute.AttributeOptions;
+
+                                    var value = "";
+                                    var isTrue = false;
+                                    var haveTrue = false;
+
+                                    if (attrOptions.Count != 0)
+                                    {
+                                        haveTrue = attrOptions.Any(c => c.IsTrue);
+
+                                        if (attrOptions.Any(c => c.Id.ToString() == itemAttr.AttrubuteValue))
+                                        {
+                                            value = attrOptions.FirstOrDefault(c => c.Id.ToString() == itemAttr.AttrubuteValue).Title;
+                                        }
+                                        else
+                                        {
+                                            value = itemAttr.AttrubuteValue;
+                                        }
+
+                                        if (haveTrue)
+                                        {
+                                            isTrue = attrOptions.FirstOrDefault(c => c.IsTrue).Id.ToString() == itemAttr.AttrubuteValue;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        value = itemAttr.AttrubuteValue;
+                                    }
+
+                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = value;
+
+                                    if (haveTrue)
+                                    {
+                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Style.Fill.BackgroundColor.SetColor(isTrue ? Color.LightGreen : Color.IndianRed);
+                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].AddComment($"امتیاز این فیلد {itemAttr.Attribute.Score}", "Mabna");
+                                    }
                                 }
                                 else
                                 {
-                                    worksheet.Cells[1 + (index + 1), 7 + (i + 1)].Value = itemAttr.AttrubuteValue;
+                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = itemAttr.AttrubuteValue;
                                 }
                             }
                         }
                     }
-                    worksheet.View.RightToLeft = true;
-                    worksheet.Cells.Style.Font.Name = "B Yekan";
-                    worksheet.Cells.Style.Font.Size = 11;
-                    worksheet.Cells.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
-                    worksheet.Cells.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 
                     fileContents = package.GetAsByteArray();
 
                     var guid = System.Guid.NewGuid().ToString();
 
-                    var name = DateTime.Now.ToLongDateString();
+                    PersianCalendar pc = new PersianCalendar();
+                    var date = DateTime.Now;
+                    var persianDateString = pc.GetYear(date).ToString() + pc.GetMonth(date).ToString("0#") + pc.GetDayOfMonth(date).ToString("0#") + pc.GetHour(date).ToString("0#") + pc.GetMinute(date).ToString("0#") + pc.GetSecond(date).ToString("0#");
 
-                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, $"ite_" + name + ".xlsx");
+                    var name = $"{cat.Title.Trim()}_{persianDateString}";
+
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, $"Items_" + name + ".xlsx");
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
 
                     System.IO.File.WriteAllBytes(path, fileContents);
 
-                    var filepath = Path.Combine("/UploadFiles/" + guid + "/" + $"ite_" + name + ".xlsx");
-
-                    // db.Logs.Add(new Log
-                    // {
-                    // 	Date = DateTime.Now,
-                    // 	Event = "Excel Output for CatId/CatTitle: " + cat.Id + "/" + cat.Title,
-                    // 	Desc = "File path = " + filepath + ", UserName = " + User.Identity.Name,
-                    //     agentId =
-                    // });
+                    var filepath = Path.Combine("/UploadFiles/" + guid + "/" + $"Items_" + name + ".xlsx");
 
                     await db.SaveChangesAsync();
 
