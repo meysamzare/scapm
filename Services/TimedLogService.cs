@@ -21,11 +21,11 @@ namespace SCMR_Api
 
         public IServiceProvider Services { get; }
 
-        private List<ILog> Logs;
+        private List<ILogSystem> Logs;
 
         public TimedLogService(ILogger<TimedLogService> logger, IServiceProvider services)
         {
-            Logs = new List<ILog>();
+            Logs = new List<ILogSystem>();
             _logger = logger;
             Services = services;
         }
@@ -54,7 +54,7 @@ namespace SCMR_Api
             }
         }
 
-        public void AddLog(ILog log)
+        public void AddLog(ILogSystem log)
         {
             _logger.LogInformation("Log Added AA at " + DateTime.Now.ToPersianDateWithTime());
 
@@ -83,11 +83,11 @@ namespace SCMR_Api
         private IHostingEnvironment hostingEnvironment;
         private IConfiguration _config;
 
-        private List<ILog> Logs;
+        private List<ILogSystem> Logs;
 
         public ScopedLogProcessingService(ILogger<ScopedLogProcessingService> logger, IHostingEnvironment _hostingEnvironment, IConfiguration config)
         {
-            Logs = new List<ILog>();
+            Logs = new List<ILogSystem>();
 
             _logger = logger;
             hostingEnvironment = _hostingEnvironment;
@@ -99,7 +99,7 @@ namespace SCMR_Api
             _logger.LogInformation("Log Count = " + Logs.Count);
         }
 
-        public void AddLog(ILog log)
+        public void AddLog(ILogSystem log)
         {
             _logger.LogInformation("Log Added at " + DateTime.Now.ToPersianDateWithTime());
 
@@ -124,7 +124,7 @@ namespace SCMR_Api
             return logPath;
         }
 
-        private async Task<List<ILog>> getLogsOnDate(DateTime date)
+        private async Task<List<ILogSystem>> getLogsOnDate(DateTime date)
         {
             var path = _getLogPath(date);
 
@@ -133,9 +133,9 @@ namespace SCMR_Api
             return logs;
         }
 
-        private async Task<List<ILog>> _ReadLogAsync(string path)
+        private async Task<List<ILogSystem>> _ReadLogAsync(string path)
         {
-            return JsonConvert.DeserializeObject<List<ILog>>(await System.IO.File.ReadAllTextAsync(path));
+            return JsonConvert.DeserializeObject<List<ILogSystem>>(await System.IO.File.ReadAllTextAsync(path));
         }
     }
 
@@ -144,6 +144,6 @@ namespace SCMR_Api
         void DoWork();
 
 
-        void AddLog(ILog log);
+        void AddLog(ILogSystem log);
     }
 }

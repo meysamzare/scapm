@@ -3,6 +3,7 @@ using SCMR_Api.Model;
 using SCMR_Api.Model.Financial;
 using SCMR_Api.Model.Index;
 using System;
+using System.Linq;
 
 namespace SCMR_Api.Data
 {
@@ -143,6 +144,18 @@ namespace SCMR_Api.Data
                     Value = "1"
                 });
 
+            modelBuilder.Entity<ILogSystem>()
+                .Property(e => e.TableObjectIds)
+                .HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries));
+
+            modelBuilder.Entity<Category>()
+                .Property(e => e.TeachersIdAccess)
+                .HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => int.Parse(c)).ToArray());
+
         }
 
 
@@ -152,7 +165,10 @@ namespace SCMR_Api.Data
 
         public DbSet<Log> Logs { get; set; }
         public DbSet<SystemLog> SystemLogs { get; set; }
-        
+
+
+        public DbSet<ILogSystem> ILogSystems { get; set; }
+
         public DbSet<Unit> Units { get; set; }
         public DbSet<Item> Items { get; set; }
         public DbSet<ItemAttribute> ItemAttributes { get; set; }

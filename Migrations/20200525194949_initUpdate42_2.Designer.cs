@@ -3,64 +3,23 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20200525194949_initUpdate42_2")]
+    partial class initUpdate42_2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "2.2.6-servicing-10079")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
                 .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-            modelBuilder.Entity("ILogSystem", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-                    b.Property<DateTime>("Date");
-
-                    b.Property<string>("DeleteObjects");
-
-                    b.Property<string>("Desc");
-
-                    b.Property<string>("Event");
-
-                    b.Property<string>("Ip");
-
-                    b.Property<string>("LogSource");
-
-                    b.Property<string>("Object");
-
-                    b.Property<string>("OldObject");
-
-                    b.Property<string>("ResponseData");
-
-                    b.Property<string>("Table");
-
-                    b.Property<string>("TableObjectIds");
-
-                    b.Property<string>("Type");
-
-                    b.Property<int>("agentId");
-
-                    b.Property<string>("agentName");
-
-                    b.Property<string>("agentType");
-
-                    b.Property<string>("dateString");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ILogSystems");
-                });
 
             modelBuilder.Entity("SCMR_Api.Model.Attribute", b =>
                 {
@@ -191,8 +150,6 @@ namespace SCMR_Api.Migrations
                     b.Property<string>("ShowInfoPicUrl");
 
                     b.Property<int>("ShowRow");
-
-                    b.Property<string>("TeachersIdAccess");
 
                     b.Property<string>("Title");
 
@@ -1005,7 +962,8 @@ namespace SCMR_Api.Migrations
 
                     b.Property<string>("Tags");
 
-                    b.Property<string>("Title");
+                    b.Property<string>("Title")
+                        .HasMaxLength(50);
 
                     b.Property<int>("UnitId");
 
@@ -1031,8 +989,6 @@ namespace SCMR_Api.Migrations
                     b.Property<string>("AttrubuteValue");
 
                     b.Property<int>("ItemId");
-
-                    b.Property<double>("Score");
 
                     b.HasKey("Id");
 
@@ -2760,10 +2716,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2020, 6, 19, 11, 52, 34, 137, DateTimeKind.Local).AddTicks(8558),
+                            DateAdd = new DateTime(2020, 5, 26, 0, 19, 48, 401, DateTimeKind.Local).AddTicks(2332),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("223caf13-9849-4e94-8fb2-6d054b066786"),
+                            GId = new Guid("4a4e56ec-22c3-4de6-8ae0-ce477426cc42"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",

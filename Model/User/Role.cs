@@ -331,6 +331,21 @@ namespace SCMR_Api.Model
         public bool Remove_Workbook { get; set; }
         public bool View_Workbook { get; set; }
 
+        public bool Add_OnlineExam { get; set; }
+        public bool Edit_OnlineExam { get; set; }
+        public bool Remove_OnlineExam { get; set; }
+        public bool View_OnlineExam { get; set; }
+
+        public bool Add_OnlineExamOption { get; set; }
+        public bool Edit_OnlineExamOption { get; set; }
+        public bool Remove_OnlineExamOption { get; set; }
+        public bool View_OnlineExamOption { get; set; }
+
+        public bool Add_OnlineExamResult { get; set; }
+        public bool Edit_OnlineExamResult { get; set; }
+        public bool Remove_OnlineExamResult { get; set; }
+        public bool View_OnlineExamResult { get; set; }
+
 
         public bool View_Log { get; set; }
 

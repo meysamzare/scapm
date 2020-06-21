@@ -38,43 +38,23 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Add([FromBody] AddCategoryParam addCategory)
+        public async Task<IActionResult> Add([FromBody] Category category)
         {
             try
             {
 
-                var category = new Category
-                {
-                    Title = addCategory.title,
-                    ParentId = addCategory.parentId,
-                    IsActive = addCategory.isActive,
-                    Desc = addCategory.desc,
-                    EndMessage = addCategory.endMessage,
-                    HaveInfo = addCategory.haveInfo,
-                    IsInfoShow = addCategory.isInfoShow,
-                    ActiveMessage = addCategory.activeMessage,
-                    DeActiveMessage = addCategory.deActiveMessage,
-                    RoleAccess = addCategory.roleAccess,
-                    HaveEntringCard = addCategory.haveEntringCard,
-                    BtnTitle = addCategory.btnTitle,
-                    ShowRow = (ShowRow)addCategory.showRow,
-                    PostType = addCategory.postType,
-                    AuthorizeState = addCategory.authorizeState,
-                    License = addCategory.license
-                };
-
-                DateTime datepublish = addCategory.datePublish.AddDays(1);
+                DateTime datepublish = category.DatePublish.Value.AddDays(1);
                 TimeSpan timepublish;
-                if (!TimeSpan.TryParse(addCategory.timePublish, out timepublish))
+                if (!TimeSpan.TryParse(category.timePublish, out timepublish))
                 {
                     return this.UnSuccessFunction("مقدار زمان شروع را وارد کنید");
                 }
                 datepublish = datepublish.Date + timepublish;
 
 
-                DateTime dateex = addCategory.dateExpire.AddDays(1);
+                DateTime dateex = category.DateExpire.Value.AddDays(1);
                 TimeSpan timeex;
-                if (!TimeSpan.TryParse(addCategory.timeExpire, out timeex))
+                if (!TimeSpan.TryParse(category.timeExpire, out timeex))
                 {
                     return this.UnSuccessFunction("مقدار زمان انقضا را وارد کنید");
                 }
@@ -83,43 +63,43 @@ namespace SCMR_Api.Controllers
                 category.DateExpire = dateex;
                 category.DatePublish = datepublish;
 
-                if (!string.IsNullOrEmpty(addCategory.registerFileData))
+                if (!string.IsNullOrEmpty(category.RegisterFileData))
                 {
                     var guid = System.Guid.NewGuid().ToString();
 
-                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, addCategory.registerFileName);
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, category.RegisterFileName);
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
 
-                    byte[] bytes = Convert.FromBase64String(addCategory.registerFileData);
+                    byte[] bytes = Convert.FromBase64String(category.RegisterFileData);
                     System.IO.File.WriteAllBytes(path, bytes);
 
-                    category.RegisterPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + addCategory.registerFileName);
+                    category.RegisterPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + category.RegisterFileName);
                 }
 
-                if (!string.IsNullOrEmpty(addCategory.showInfoFileData))
+                if (!string.IsNullOrEmpty(category.ShowInfoFileData))
                 {
                     var guid = System.Guid.NewGuid().ToString();
 
-                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, addCategory.showInfoFileName);
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, category.ShowInfoFileName);
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
 
-                    byte[] bytes = Convert.FromBase64String(addCategory.showInfoFileData);
+                    byte[] bytes = Convert.FromBase64String(category.ShowInfoFileData);
                     System.IO.File.WriteAllBytes(path, bytes);
 
-                    category.ShowInfoPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + addCategory.showInfoFileName);
+                    category.ShowInfoPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + category.ShowInfoFileName);
                 }
 
-                if (!string.IsNullOrEmpty(addCategory.headerPicData))
+                if (!string.IsNullOrEmpty(category.HeaderPicData))
                 {
                     var guid = System.Guid.NewGuid().ToString();
 
-                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, addCategory.headerPicName);
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, category.HeaderPicName);
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
 
-                    byte[] bytes = Convert.FromBase64String(addCategory.headerPicData);
+                    byte[] bytes = Convert.FromBase64String(category.HeaderPicData);
                     System.IO.File.WriteAllBytes(path, bytes);
 
-                    category.HeaderPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + addCategory.headerPicName);
+                    category.HeaderPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + category.HeaderPicName);
                 }
 
                 db.Categories.Add(category);
@@ -153,6 +133,11 @@ namespace SCMR_Api.Controllers
 
                 cat.ParentId = addCategory.parentId;
                 cat.Title = addCategory.title;
+                cat.Type = addCategory.type;
+                cat.RandomAttribute = addCategory.randomAttribute;
+                cat.RandomAttributeOption = addCategory.randomAttributeOption;
+
+                cat.TeachersIdAccess = addCategory.teachersIdAccess;
 
                 DateTime datepublish = addCategory.datePublish;
                 if (cat.DatePublish != datepublish)
@@ -331,6 +316,23 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> GetAllPinedByType([FromBody] int type)
+        {
+            try
+            {
+                var catList = await db.Categories
+                    .Where(c => c.IsPined && c.Type == (CategoryTotalType)type)
+                .ToListAsync();
+
+                return this.SuccessFunction(data: catList);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> togglePin([FromBody] int id)
         {
             try
@@ -350,12 +352,167 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> ChangeCheckableProperty([FromBody] ChangeCheckablePropertyParam param)
+        {
+            try
+            {
+                var cat = await db.Categories.FirstOrDefaultAsync(c => c.Id == param.catId);
+
+                if (param.type == "isActive")
+                {
+                    cat.IsActive = param.check;
+                }
+
+                if (param.type == "haveInfo")
+                {
+                    cat.HaveInfo = param.check;
+                }
+
+                if (param.type == "isInfoShow")
+                {
+                    cat.IsInfoShow = param.check;
+                }
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddRandomQuestionAttribute([FromBody] AddRandomQuestionAttributeParam param)
+        {
+            try
+            {
+                var questionIds = new List<int>();
+
+                var questions = await db.Questions
+                    .Where(c => c.CourseId == param.selectedCourseForQuestion)
+                    .OrderBy(c => Guid.NewGuid())
+                .ToListAsync();
+
+                if (param.hardQuestionNumber.HasValue && param.hardQuestionNumber.Value > 0)
+                {
+                    var qus = questions.Where(c => c.Defact == QueDefact.Hard).Take(param.hardQuestionNumber.Value).ToList();
+
+                    qus.ForEach(q => questionIds.Add(q.Id));
+                }
+
+                if (param.mediumQuestionNumber.HasValue && param.mediumQuestionNumber.Value > 0)
+                {
+                    var qus = questions.Where(c => c.Defact == QueDefact.Modrate).Take(param.mediumQuestionNumber.Value).ToList();
+
+                    qus.ForEach(q => questionIds.Add(q.Id));
+                }
+
+                if (param.easyQuestionNumber.HasValue && param.easyQuestionNumber.Value > 0)
+                {
+                    var qus = questions.Where(c => c.Defact == QueDefact.Easy).Take(param.easyQuestionNumber.Value).ToList();
+
+                    qus.ForEach(q => questionIds.Add(q.Id));
+                }
+
+                if (questionIds.Count != 0)
+                {
+                    var cat = await db.Categories
+                        .Include(c => c.Attributes)
+                    .FirstOrDefaultAsync(c => c.Id == param.catId);
+
+                    var attributes = new List<Model.Attribute>();
+
+                    var unitId = 1;
+                    var course = await db.Courses.FirstOrDefaultAsync(c => c.Id == param.selectedCourseForQuestion);
+
+                    if (await db.Units.AnyAsync(c => c.Title == course.Name))
+                    {
+                        unitId = db.Units.FirstOrDefault(c => c.Title == course.Name).Id;
+                    }
+                    else
+                    {
+                        var unit = new Unit
+                        {
+                            Title = course.Name,
+                            EnTitle = "Section"
+                        };
+
+                        db.Units.Add(unit);
+
+                        await db.SaveChangesAsync();
+
+                        unitId = unit.Id;
+                    }
+
+                    questionIds.ForEach(qId =>
+                    {
+                        if (!cat.Attributes.Any(c => c.QuestionId == qId))
+                        {
+                            var question = db.Questions.FirstOrDefault(c => c.Id == qId);
+
+                            var attr = new Model.Attribute
+                            {
+                                Title = $"{cat.Title} - {question.Name}",
+                                Values = "",
+                                UnitId = unitId,
+                                AttrType = AttrType.Question,
+                                IsInClient = true,
+                                IsRequired = true,
+                                Score = 1,
+                                QuestionId = question.Id
+                            };
+
+                            attributes.Add(attr);
+                        }
+                    });
+
+                    if (attributes.Any())
+                    {
+                        attributes.ForEach(attr => cat.Attributes.Add(attr));
+
+                        await db.SaveChangesAsync();
+
+                        return this.SuccessFunction();
+                    }
+
+                    return this.UnSuccessFunction("سوالی با فیلتر مورد نظر یافت نشد و یا قبلا ثبت شده است");
+                }
+                else
+                {
+                    return this.UnSuccessFunction("سوالی با فیلتر مورد نظر یافت نشد");
+                }
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> getAllByType([FromBody] int type)
+        {
+            try
+            {
+                var cat = await db.Categories.Where(c => c.Type == (CategoryTotalType)type).ToListAsync();
+
+                return this.DataFunction(true, cat);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> getAllIndex()
         {
             try
             {
                 var catList = await db.Categories
+                    .Where(c => c.Type == CategoryTotalType.registerForm)
                     .Where(c => DateTime.Now >= c.DatePublish && DateTime.Now <= c.DateExpire && c.IsActive == true && c.PostType == 0)
                 .ToListAsync();
 
@@ -374,6 +531,7 @@ namespace SCMR_Api.Controllers
             try
             {
                 var cats = await db.Categories
+                    .Where(c => c.Type == CategoryTotalType.registerForm)
                     .Where(c => DateTime.Now >= c.DatePublish && DateTime.Now <= c.DateExpire && c.IsActive == true && c.PostType == type)
                 .ToListAsync();
 
@@ -387,22 +545,33 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Get([FromBody] getparams getparams)
+        public async Task<IActionResult> Get([FromBody] getCategoryParam param)
         {
             try
             {
+                var getparams = param.getparams;
+
                 getparams.pageIndex += 1;
 
                 int count;
 
-
                 var query = getparams.q;
 
                 var cls = db.Categories
-                    .Include(c => c.ParentCategory)
-                    .Include(c => c.Children)
+                        .Include(c => c.ParentCategory)
+                        .Include(c => c.Children)
+                    .Where(c => c.Type == (CategoryTotalType)param.type)
                 .AsQueryable();
 
+                if (param.selectedGradeId.HasValue)
+                {
+                    cls = cls.Where(c => c.GradeId == param.selectedGradeId.Value);
+                }
+
+                if (param.selectedClassId.HasValue)
+                {
+                    cls = cls.Where(c => c.ClassId == param.selectedClassId.Value);
+                }
 
                 if (!string.IsNullOrWhiteSpace(query))
                 {
@@ -452,7 +621,20 @@ namespace SCMR_Api.Controllers
                 cls = cls.Skip((getparams.pageIndex - 1) * getparams.pageSize);
                 cls = cls.Take(getparams.pageSize);
 
-                var q = await cls.ToListAsync();
+                var q = await cls
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        Title = c.Title,
+                        parentTitle = c.ParentCategory == null || c.ParentId == null ? "ریشه" : c.ParentCategory.Title,
+                        gradeString = c.Grade == null ? "" : c.Grade.Name,
+                        classString = c.Class == null ? "" : c.Class.Name,
+                        isPined = c.IsPined,
+                        isActive = c.IsActive,
+                        haveInfo = c.HaveInfo,
+                        isInfoShow = c.IsInfoShow,
+                    })
+                .ToListAsync();
 
                 return Json(new jsondata
                 {
@@ -489,6 +671,25 @@ namespace SCMR_Api.Controllers
                     return this.UnSuccessFunction("Undefined Value", "error");
                 }
 
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> getOnlineExams()
+        {
+            try
+            {
+                var catList = await db.Categories
+                    .Where(c => c.Type == CategoryTotalType.onlineExam)
+                    .Where(c => DateTime.Now >= c.DatePublish && DateTime.Now <= c.DateExpire && c.IsActive == true)
+                .ToListAsync();
+
+                return this.SuccessFunction(data: catList);
             }
             catch (System.Exception e)
             {
@@ -614,6 +815,32 @@ namespace SCMR_Api.Controllers
 
     }
 
+    public class ChangeCheckablePropertyParam
+    {
+        public int catId { get; set; }
+        public string type { get; set; }
+        public bool check { get; set; }
+    }
+
+    public class AddRandomQuestionAttributeParam
+    {
+        public int catId { get; set; }
+        public int selectedCourseForQuestion { get; set; }
+        public int? hardQuestionNumber { get; set; }
+        public int? mediumQuestionNumber { get; set; }
+        public int? easyQuestionNumber { get; set; }
+    }
+
+    public class getCategoryParam
+    {
+        public getparams getparams { get; set; }
+
+        public int type { get; set; }
+
+        public int? selectedGradeId { get; set; }
+        public int? selectedClassId { get; set; }
+    }
+
     public class AddCategoryParam
     {
         public int id { get; set; }
@@ -674,6 +901,23 @@ namespace SCMR_Api.Controllers
         public string headerPicUrl { get; set; }
         public string headerPicData { get; set; }
         public string headerPicName { get; set; }
+
+
+
+        public CategoryTotalType type { get; set; }
+
+        public int? gradeId { get; set; }
+
+        public int? classId { get; set; }
+
+        public bool randomAttribute { get; set; }
+
+        public bool randomAttributeOption { get; set; }
+
+        public bool isPined { get; set; }
+
+        public int[] teachersIdAccess { get; set; }
+
     }
 
     public class JsTreeModel

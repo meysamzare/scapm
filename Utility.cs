@@ -87,14 +87,14 @@ namespace SCMR_Api
                  line = frame.GetFileLineNumber();
 
 
-                db.Logs.Add(new Model.Log
+                db.ILogSystems.Add(new ILogSystem
                 {
                     Date = DateTime.Now,
                     Event = "System Crash Report",
                     Desc = e.ToString() + " lineNumber = " + line + ", InnerException = " + e.InnerException,
                     agentId = 0,
                     agentName = "---",
-                    agnetType = "Api",
+                    agentType = "Api",
                     Ip = "---",
                     LogSource = "Api"
                 });

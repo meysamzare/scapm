@@ -48,6 +48,7 @@ namespace SCMR_Api.Controllers
                 var qop = await db.QuestionOptions.SingleAsync(c => c.Id == questionop.Id);
 
                 qop.Name = questionop.Name;
+                qop.Title = questionop.Title;
                 qop.IsTrue = questionop.IsTrue;
                 qop.QuestionId = questionop.QuestionId;
 
@@ -80,6 +81,7 @@ namespace SCMR_Api.Controllers
                     .Select(c => new
                     {
                         Id = c.Id,
+                        Title = c.Title,
                         IsTrue = c.IsTrue,
                         Name = c.Name,
                         questionName = c.Question.Name,

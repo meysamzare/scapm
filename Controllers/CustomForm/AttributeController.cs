@@ -58,6 +58,48 @@ namespace SCMR_Api.Controllers
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> ChangeCheckable([FromBody] ChangeCheckableParam param)
+        {
+            try
+            {
+                var attr = await db.Attributes.FirstOrDefaultAsync(c => c.Id == param.attrId);
+
+                if (param.type == "isInClient")
+                {
+                    attr.IsInClient = param.check;
+                }
+
+                if (param.type == "isRequired")
+                {
+                    attr.IsRequired = param.check;
+                }
+
+                if (param.type == "isUniq")
+                {
+                    attr.IsUniq = param.check;
+                }
+
+                if (param.type == "isInShowInfo")
+                {
+                    attr.IsInShowInfo = param.check;
+                }
+
+                if (param.type == "isInSearch")
+                {
+                    attr.IsInSearch = param.check;
+                }
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> getAll()
@@ -65,6 +107,29 @@ namespace SCMR_Api.Controllers
             try
             {
                 var sl = await db.Attributes
+                    .Select(c => new
+                    {
+                        id = c.Id,
+                        title = c.Title + " (" + c.Category.Title.Trim() + ")"
+                    })
+                .ToListAsync();
+
+                return this.DataFunction(true, sl);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> getAllByCatType([FromBody] int type)
+        {
+            try
+            {
+                var sl = await db.Attributes
+                        .Include(c => c.Category)
+                    .Where(c => c.Category.Type == (CategoryTotalType)type)
                     .Select(c => new
                     {
                         id = c.Id,
@@ -94,8 +159,9 @@ namespace SCMR_Api.Controllers
                 var query = getparams.getparams.q;
 
                 var cls = db.Attributes
-                    .Include(c => c.Category)
-                    .Include(c => c.Unit)
+                        .Include(c => c.Category)
+                        .Include(c => c.Unit)
+                    .Where(c => c.Category.Type == (CategoryTotalType)getparams.Type)
                 .AsQueryable();
 
                 if (getparams.selectedCatId != 0)
@@ -191,7 +257,7 @@ namespace SCMR_Api.Controllers
                 if (id != 0)
                 {
 
-                    var attr = await db.Attributes.SingleAsync(c => c.Id == id);
+                    var attr = await db.Attributes.FirstOrDefaultAsync(c => c.Id == id);
                     if (attr == null)
                     {
                         return this.UnSuccessFunction("Data Not Found", "error");
@@ -263,22 +329,30 @@ namespace SCMR_Api.Controllers
             {
                 var attrlist = await getAttrForCat(catId);
 
-                var attr = attrList.OrderBy(c => c.Order).ThenBy(c => c.Id).Select(c => new
+                var attr = attrList.OrderBy(c => c.Order).ThenBy(c => c.Id)
+                .Select(c => new
                 {
                     Id = c.Id,
                     AttrTypeInt = c.AttrTypeToInt(c.AttrType),
                     UnitId = c.UnitId,
-                    IsRequired = c.IsRequired,
-                    IsUniq = c.IsUniq,
-                    Title = c.Title,
+                    Title = c.AttrType == AttrType.Question ? c.Question.Title : c.Title,
                     Placeholder = c.Placeholder,
                     Desc = c.Desc,
                     Values = c.Values,
                     MaxFileSize = c.MaxFileSize,
                     CategoryId = c.CategoryId,
-                    AttributeOptions = c.AttributeOptions == null ? new List<AttributeOption>() : c.AttributeOptions.ToList(),
-                    Score = c.Score
-                });
+                    AttributeOptions = c.getAttributeOptions(true, c.AttrType, c.AttributeOptions, c.Question == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
+                    Score = c.Score,
+                    QuestionId = c.QuestionId,
+                    QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
+                    ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent,
+                    IsInClient = c.IsInClient,
+                    IsRequired = c.IsRequired,
+                    IsUniq = c.IsUniq,
+                    IsInShowInfo = c.IsInShowInfo,
+                    IsInSearch = c.IsInSearch
+                })
+                .ToList();
 
                 return this.DataFunction(true, attr);
             }
@@ -295,22 +369,27 @@ namespace SCMR_Api.Controllers
             {
                 var attrlist = await getAttrForCat(catId);
 
-                var attr = attrList.Where(c => c.IsInClient == false).OrderBy(c => c.Order).ThenBy(c => c.Id).Select(c => new
+                var attr = attrList.Where(c => c.IsInClient == false).OrderBy(c => c.Order).ThenBy(c => c.Id)
+                .Select(c => new
                 {
                     Id = c.Id,
                     AttrTypeInt = c.AttrTypeToInt(c.AttrType),
                     UnitId = c.UnitId,
                     IsRequired = c.IsRequired,
                     IsUniq = c.IsUniq,
-                    Title = c.Title,
+                    Title = c.AttrType == AttrType.Question ? c.Question.Title : c.Title,
                     Placeholder = c.Placeholder,
                     Desc = c.Desc,
                     Values = c.Values,
                     MaxFileSize = c.MaxFileSize,
                     CategoryId = c.CategoryId,
                     Score = c.Score,
-                    AttributeOptions = c.AttributeOptions == null ? new List<AttributeOption>() : c.AttributeOptions.ToList()
-                });
+                    QuestionId = c.QuestionId,
+                    AttributeOptions = c.getAttributeOptions(true, c.AttrType, c.AttributeOptions, c.Question == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
+                    QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
+                    ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent
+                })
+                .ToList();
 
                 return this.DataFunction(true, attr);
             }
@@ -330,7 +409,10 @@ namespace SCMR_Api.Controllers
             {
                 var attrlist = await getAttrForCat(catId);
 
-                var attrListSelected = attrlist.Where(c => c.IsInClient == true).OrderBy(c => c.UnitId).ThenBy(c => c.Order)
+                var attrListSelected = attrlist
+                    .Where(c => c.IsInClient == true)
+                        .OrderBy(c => c.UnitId)
+                            .ThenBy(c => c.Order)
                 .Select(c => new
                 {
                     Id = c.Id,
@@ -338,12 +420,15 @@ namespace SCMR_Api.Controllers
                     UnitId = c.UnitId,
                     IsRequired = c.IsRequired,
                     IsUniq = c.IsUniq,
-                    Title = c.Title,
+                    Title = c.AttrType == AttrType.Question ? c.Question.Title : c.Title,
                     Placeholder = c.Placeholder,
                     Desc = c.Desc,
                     Values = c.Values,
                     MaxFileSize = c.MaxFileSize,
-                    AttributeOptions = c.AttributeOptions == null ? new List<AttributeOption>() : c.AttributeOptions.Select(option => new AttributeOption { Id = option.Id, Title = option.Title }).ToList()
+                    IsMeliCode = c.IsMeliCode,
+                    AttributeOptions = c.getAttributeOptions(false, c.AttrType, c.AttributeOptions, c.Question == null || c.Question.QuestionOptions == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
+                    QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
+                    ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent
                 })
                 .ToList();
 
@@ -362,6 +447,9 @@ namespace SCMR_Api.Controllers
             var cat = await db.Categories
                 .Include(c => c.Attributes)
                     .ThenInclude(c => c.AttributeOptions)
+                .Include(c => c.Attributes)
+                    .ThenInclude(c => c.Question)
+                        .ThenInclude(c => c.QuestionOptions)
                 .Include(c => c.ParentCategory)
             .SingleAsync(c => c.Id == cat1);
             if (cat.Attributes.Count != 0)
@@ -482,11 +570,20 @@ namespace SCMR_Api.Controllers
 
     }
 
+    public class ChangeCheckableParam
+    {
+        public int attrId { get; set; }
+        public string type { get; set; }
+        public bool check { get; set; }
+    }
+
     public class getparamsAttr
     {
         public getparams getparams { get; set; }
 
         public int selectedCatId { get; set; }
+
+        public int Type { get; set; }
     }
 
     public class AddAttrParam

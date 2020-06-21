@@ -12,6 +12,8 @@ using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
 using MD.PersianDateTime.Core;
 using Microsoft.Extensions.DependencyInjection;
+using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace SCMR_Api.Controllers
 {
@@ -35,64 +37,48 @@ namespace SCMR_Api.Controllers
             _logScope = logScope;
         }
 
-        private static Object lock_Obj = new Object();
-
 
         [HttpPost]
         [AllowAnonymous]
         [DisableRequestSizeLimit]
-        public async Task<IActionResult> setLog([FromBody] ILog log)
+        public async Task<IActionResult> setLog([FromBody] ILogSystemParam param)
         {
             try
             {
+                
                 var date = DateTime.Now;
-                var path = _getLogPath(date);
 
-                var settings = await getLogSettingsAsync();
+                param.Date = date;
+                param.dateString = date.ToPersianDateWithTime();
+                param.Ip = accessor.HttpContext.Connection.RemoteIpAddress.ToString();
 
-                if (!settings.saveResponseData)
+                var log = new ILogSystem
                 {
-                    log.ResponseData = "log Response Data is Off...";
-                }
+                    Type = param.Type,
+                    Date = param.Date,
+                    dateString = param.dateString,
+                    agentId = param.agentId,
+                    agentType = param.agentType,
+                    agentName = param.agentName,
+                    Object = JsonConvert.SerializeObject(param.Object, Formatting.Indented),
+                    OldObject = JsonConvert.SerializeObject(param.OldObject, Formatting.Indented),
+                    DeleteObjects = JsonConvert.SerializeObject(param.DeleteObjects, Formatting.Indented),
+                    Table = param.Table,
+                    TableObjectIds = param.TableObjectIds != null ? 
+                        param.TableObjectIds.Where(x => x != null)
+                       .Select(x => x.ToString())
+                       .ToArray() : new string[0],
+                    ResponseData = JsonConvert.SerializeObject(param.ResponseData, Formatting.Indented),
+                    LogSource = param.LogSource,
+                    Ip = param.Ip,
+                    Desc = param.Desc,
+                    Event = param.Event,
+                };
 
-                lock (lock_Obj)
-                {
-                    using (var stream = GetLogFileStream(path))
-                    {
-                        using (var reader = new StreamReader(stream))
-                        {
-                            using (var writer = new StreamWriter(stream))
-                            {
-                                string json = reader.ReadToEnd();
-                                var existsLogs = JsonConvert.DeserializeObject<List<ILog>>(json);
+                await db.ILogSystems.AddAsync(log);
 
-                                if (existsLogs == null)
-                                {
-                                    existsLogs = new List<ILog>();
-                                }
+                await db.SaveChangesAsync();
 
-                                long lastId = 0;
-
-                                if (existsLogs.Count != 0)
-                                {
-                                    lastId = existsLogs.Last().Id;
-                                }
-
-                                log.Id = lastId + 1;
-
-                                log.Ip = accessor.HttpContext.Connection.RemoteIpAddress.ToString();
-                                log.Date = date;
-                                log.dateString = date.ToPersianDateWithTime();
-
-                                existsLogs.Add(log);
-
-                                stream.SetLength(0);
-
-                                writer.WriteLine(JsonConvert.SerializeObject(existsLogs));
-                            }
-                        }
-                    }
-                }
                 return this.SuccessFunction();
             }
             catch (System.Exception e)
@@ -102,7 +88,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        public IActionResult Get([FromBody] GetLogParam param)
+        public async Task<IActionResult> Get([FromBody] GetLogParam param)
         {
             try
             {
@@ -115,19 +101,17 @@ namespace SCMR_Api.Controllers
 
                 var query = getparams.q;
 
-                var logsWithDate = getAllLogs();
+                var logs = db.ILogSystems.AsQueryable();
 
                 if (param.dateStart.HasValue)
                 {
-                    logsWithDate = logsWithDate.Where(c => c.date >= param.dateStart.Value).ToList();
+                    logs = logs.Where(c => c.Date >= param.dateStart.Value);
                 }
 
                 if (param.dateEnd.HasValue)
                 {
-                    logsWithDate = logsWithDate.Where(c => c.date <= param.dateEnd.Value).ToList();
+                    logs = logs.Where(c => c.Date <= param.dateEnd.Value);
                 }
-
-                var logs = logsWithDate.SelectMany(c => c.logs);
 
                 if (!string.IsNullOrWhiteSpace(query))
                 {
@@ -153,7 +137,7 @@ namespace SCMR_Api.Controllers
                 }
                 if (!string.IsNullOrEmpty(param.searchId))
                 {
-                    logs = logs.Where(c =>
+                    logs = logs.ToList().Where(c =>
                     {
                         if (c.TableObjectIds == null)
                         {
@@ -163,7 +147,7 @@ namespace SCMR_Api.Controllers
                         {
                             return c.TableObjectIds.Select(l => l.ToString()).Contains(param.searchId);
                         }
-                    });
+                    }).AsQueryable();
                 }
 
                 count = logs.Count();
@@ -239,8 +223,8 @@ namespace SCMR_Api.Controllers
                 logs = logs.Skip((getparams.pageIndex - 1) * getparams.pageSize);
                 logs = logs.Take(getparams.pageSize);
 
-                var q = logs
-                    .Select(c => new ILog
+                var q = await logs
+                    .Select(c => new ILogSystem
                     {
                         Id = c.Id,
                         dateString = c.dateString,
@@ -253,7 +237,7 @@ namespace SCMR_Api.Controllers
                         Ip = c.Ip,
                         LogSource = c.LogSource
                     })
-                .ToList();
+                .ToListAsync();
 
                 return Json(new jsondata
                 {
@@ -273,9 +257,7 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var logs = await getLogsOnDate(param.date);
-
-                var log = logs.FirstOrDefault(c => c.Id == param.id);
+                var log = await db.ILogSystems.FirstOrDefaultAsync(c => c.Id == param.id);
 
                 var content =
                     "\n\n Type is: " + log.Type + " \n\n\n"
@@ -307,14 +289,14 @@ namespace SCMR_Api.Controllers
 
         #region logOprations
 
-        private async Task<List<ILog>> _ReadLogAsync(string path)
+        private async Task<List<ILogSystem>> _ReadLogAsync(string path)
         {
-            return JsonConvert.DeserializeObject<List<ILog>>(await System.IO.File.ReadAllTextAsync(path));
+            return JsonConvert.DeserializeObject<List<ILogSystem>>(await System.IO.File.ReadAllTextAsync(path));
         }
 
-        private List<ILog> _ReadLog(string path)
+        private List<ILogSystem> _ReadLog(string path)
         {
-            return JsonConvert.DeserializeObject<List<ILog>>(System.IO.File.ReadAllText(path));
+            return JsonConvert.DeserializeObject<List<ILogSystem>>(System.IO.File.ReadAllText(path));
         }
 
         private FileStream GetLogFileStream(string path)
@@ -333,14 +315,14 @@ namespace SCMR_Api.Controllers
             return logPath;
         }
 
-        private async Task<ILogSetting> getLogSettingsAsync()
+        private async Task<ILogSystemSetting> getLogSettingsAsync()
         {
             var logPath = Path.Combine(hostingEnvironment.ContentRootPath, _config["Paths:Logs"], "settings.json");
 
-            return JsonConvert.DeserializeObject<ILogSetting>(await System.IO.File.ReadAllTextAsync(logPath));
+            return JsonConvert.DeserializeObject<ILogSystemSetting>(await System.IO.File.ReadAllTextAsync(logPath));
         }
 
-        private async Task<List<ILog>> getLogsOnDate(DateTime date)
+        private async Task<List<ILogSystem>> getLogsOnDate(DateTime date)
         {
             var path = _getLogPath(date);
 
@@ -349,7 +331,7 @@ namespace SCMR_Api.Controllers
             return logs;
         }
 
-        private List<ILogWithDate> getAllLogs()
+        private List<ILogSystemWithDate> getAllLogs()
         {
             var logsPath = Path.Combine(hostingEnvironment.ContentRootPath, _config["Paths:Logs"]);
 
@@ -357,7 +339,7 @@ namespace SCMR_Api.Controllers
                 .Select(Path.GetFileName)
             .Where(c => c.StartsWith("log_")).ToList();
 
-            var allLogsList = new List<ILogWithDate>();
+            var allLogsList = new List<ILogSystemWithDate>();
 
             foreach (var path in allLogsNameList)
             {
@@ -369,7 +351,7 @@ namespace SCMR_Api.Controllers
 
                 var logs = _ReadLog(logPath);
 
-                allLogsList.Add(new ILogWithDate
+                allLogsList.Add(new ILogSystemWithDate
                 {
                     date = dateTime,
                     logs = logs
@@ -380,6 +362,27 @@ namespace SCMR_Api.Controllers
 
         #endregion
 
+    }
+
+    public class ILogSystemParam
+    {
+        public long Id { get; set; }
+        public string Type { get; set; }
+        public DateTime Date { get; set; }
+        public string dateString { get; set; }
+        public int agentId { get; set; }
+        public string agentType { get; set; }
+        public string agentName { get; set; }
+        public object Object { get; set; }
+        public object OldObject { get; set; }
+        public object DeleteObjects { get; set; }
+        public string Table { get; set; }
+        public object[] TableObjectIds { get; set; }
+        public object ResponseData { get; set; }
+        public string LogSource { get; set; }
+        public string Ip { get; set; }
+        public string Desc { get; set; }
+        public string Event { get; set; }
     }
 
     public class getDescParam
@@ -412,35 +415,37 @@ namespace SCMR_Api.Controllers
         public string logSource { get; set; }
     }
 
-    public class ILogWithDate
+    public class ILogSystemWithDate
     {
         public DateTime date { get; set; }
-        public List<ILog> logs { get; set; }
+        public List<ILogSystem> logs { get; set; }
     }
 
-    public class ILogSetting
+    public class ILogSystemSetting
     {
         public bool saveResponseData { get; set; }
     }
+}
 
-    public class ILog
-    {
-        public long Id { get; set; }
-        public string Type { get; set; }
-        public DateTime Date { get; set; }
-        public string dateString { get; set; }
-        public int agentId { get; set; }
-        public string agentType { get; set; }
-        public string agentName { get; set; }
-        public object Object { get; set; }
-        public object OldObject { get; set; }
-        public object DeleteObjects { get; set; }
-        public string Table { get; set; }
-        public object[] TableObjectIds { get; set; }
-        public object ResponseData { get; set; }
-        public string LogSource { get; set; }
-        public string Ip { get; set; }
-        public string Desc { get; set; }
-        public string Event { get; set; }
-    }
+
+public class ILogSystem
+{
+    [Key]
+    public long Id { get; set; }
+    public string Type { get; set; }
+    public DateTime Date { get; set; }
+    public string dateString { get; set; }
+    public int agentId { get; set; }
+    public string agentType { get; set; }
+    public string agentName { get; set; }
+    public string Object { get; set; }
+    public string OldObject { get; set; }
+    public string DeleteObjects { get; set; }
+    public string Table { get; set; }
+    public string[] TableObjectIds { get; set; }
+    public string ResponseData { get; set; }
+    public string LogSource { get; set; }
+    public string Ip { get; set; }
+    public string Desc { get; set; }
+    public string Event { get; set; }
 }

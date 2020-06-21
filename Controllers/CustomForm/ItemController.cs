@@ -110,7 +110,8 @@ namespace SCMR_Api.Controllers
                 var query = getparamsComplex.param.q;
 
                 var items = db.Items
-                    .Include(c => c.Category)
+                        .Include(c => c.Category)
+                    .Where(c => c.Category.Type == (CategoryTotalType)getparamsComplex.Type)
                 .AsQueryable();
 
 
@@ -443,7 +444,21 @@ namespace SCMR_Api.Controllers
                 if (id != 0)
                 {
 
-                    var itemattrs = await db.ItemAttributes.Where(c => c.ItemId == id).ToListAsync();
+                    var itemattrs = await db.ItemAttributes
+                    .Where(c => c.ItemId == id)
+                        .Include(c => c.Attribute)
+                            .ThenInclude(c => c.Question)
+                                .ThenInclude(c => c.QuestionOptions)
+                    .Select(c => new
+                    {
+                        attributeId = c.AttributeId,
+                        itemId = c.ItemId,
+                        attrubuteValue = c.AttrubuteValue,
+                        attributeFilePath = c.AttributeFilePath,
+                        score = c.Score,
+                        scoreString = c.getScore(c, c.Attribute, c.Score)
+                    })
+                    .ToListAsync();
 
                     return this.DataFunction(true, itemattrs);
                 }
@@ -522,6 +537,25 @@ namespace SCMR_Api.Controllers
                 var itemAttrs = await db.ItemAttributes.Where(c => c.ItemId == itemid).ToListAsync();
 
                 return this.DataFunction(true, itemAttrs);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SetItemAttributeScore([FromBody] SetItemAttributeScoreParam param)
+        {
+            try
+            {
+                var itemAttr = await db.ItemAttributes.FirstOrDefaultAsync(c => c.ItemId == param.itemAttr.ItemId && c.AttributeId == param.itemAttr.AttributeId);
+
+                itemAttr.Score = param.score;
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
             }
             catch (System.Exception e)
             {
@@ -691,14 +725,21 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> setItemAttrForFiles([FromBody] ItemAttrForFileParams itemAttrForFileParams)
+        [DisableRequestSizeLimit]
+        [RequestFormLimits(ValueLengthLimit = int.MaxValue, MultipartBodyLengthLimit = long.MaxValue)]
+        public async Task<IActionResult> setItemAttrForFiles()
         {
             try
             {
+                var itemAttr = JsonConvert.DeserializeObject<dynamic>(Request.Form.FirstOrDefault(c => c.Key == "object").Value);
 
+                var files = Request.Form.Files;
 
-                var itemid = itemAttrForFileParams.itemId;
-                var attrid = itemAttrForFileParams.attrId;
+                var file = files.FirstOrDefault(c => c.FileName == itemAttr.fileName);
+
+                int itemid = itemAttr.itemId;
+                int attrid = itemAttr.attributeId;
+
                 string guidd = "";
 
                 var item = await db.Items.SingleAsync(c => c.Id == itemid);
@@ -706,78 +747,90 @@ namespace SCMR_Api.Controllers
 
                 if (await db.ItemAttributes.AnyAsync(c => c.AttributeId == attrid && c.ItemId == itemid))
                 {
-                    if (string.IsNullOrEmpty(itemAttrForFileParams.inputValue))
+                    var ia = await db.ItemAttributes.SingleAsync(c => c.AttributeId == attrid && c.ItemId == itemid);
+
+                    //Remove Old File And Save New File
+
+                    System.IO.File.Delete(ia.AttrubuteValue);
+
+                    var guid = System.Guid.NewGuid().ToString();
+                    Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
+                    string fileName = System.Net.Http.Headers.ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, fileName);
+
+                    if (file.Length > 0)
                     {
-
-                        var ia = await db.ItemAttributes.SingleAsync(c => c.AttributeId == attrid && c.ItemId == itemid);
-
-                        System.IO.File.Delete(ia.AttrubuteValue);
-
-                        db.ItemAttributes.Remove(ia);
-
-                        await db.SaveChangesAsync();
-
+                        using (var stream = new FileStream(path, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
                     }
-                    else
-                    {
-                        var ia = await db.ItemAttributes.SingleAsync(c => c.AttributeId == attrid && c.ItemId == itemid);
 
-                        //Remove Old File And Save New File
+                    var filepath = Path.Combine("/UploadFiles", guid, fileName);
 
-                        System.IO.File.Delete(ia.AttrubuteValue);
+                    ia.AttrubuteValue = path;
+                    ia.AttributeFilePath = filepath;
 
-                        var guid = System.Guid.NewGuid().ToString();
+                    guidd = filepath;
 
-                        var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, itemAttrForFileParams.fileName);
-                        Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
-
-                        byte[] bytes = Convert.FromBase64String(itemAttrForFileParams.inputValue);
-                        System.IO.File.WriteAllBytes(path, bytes);
-
-                        ia.AttrubuteValue = path;
-                        ia.AttributeFilePath = Path.Combine("/UploadFiles/" + guid + "/" + itemAttrForFileParams.fileName);
-
-                        guidd = Path.Combine("/UploadFiles/" + guid + "/" + itemAttrForFileParams.fileName);
-
-
-                        await db.SaveChangesAsync();
-
-                    }
+                    await db.SaveChangesAsync();
                 }
                 else
                 {
-                    if (string.IsNullOrEmpty(itemAttrForFileParams.inputValue))
+                    ItemAttribute ia = new ItemAttribute();
+
+                    var guid = System.Guid.NewGuid().ToString();
+                    Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
+                    string fileName = System.Net.Http.Headers.ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, fileName);
+
+                    if (file.Length > 0)
                     {
-                        //Do Nothing
+                        using (var stream = new FileStream(path, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
                     }
-                    else
-                    {
-                        ItemAttribute ia = new ItemAttribute();
 
-                        var guid = System.Guid.NewGuid().ToString();
+                    var filepath = Path.Combine("/UploadFiles", guid, fileName);
 
-                        var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, itemAttrForFileParams.fileName);
-                        Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
-
-                        byte[] bytes = Convert.FromBase64String(itemAttrForFileParams.inputValue);
-                        System.IO.File.WriteAllBytes(path, bytes);
-
-                        guidd = Path.Combine("/UploadFiles/" + guid + "/" + itemAttrForFileParams.fileName);
+                    guidd = filepath;
 
 
-                        ia.Item = item;
-                        ia.Attribute = attr;
-                        ia.AttrubuteValue = path;
-                        ia.AttributeFilePath = Path.Combine("/UploadFiles/" + guid + "/" + itemAttrForFileParams.fileName);
+                    ia.ItemId = itemid;
+                    ia.AttributeId = attrid;
+                    ia.AttrubuteValue = path;
+                    ia.AttributeFilePath = filepath;
 
-                        db.ItemAttributes.Add(ia);
+                    db.ItemAttributes.Add(ia);
 
-                        await db.SaveChangesAsync();
-                    }
+                    await db.SaveChangesAsync();
+
                 }
 
 
                 return this.SuccessFunction(data: guidd);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> removeItemAttrFile([FromBody] removeItemAttrFileParam param)
+        {
+            try
+            {
+                var ia = await db.ItemAttributes.SingleAsync(c => c.AttributeId == param.attrId && c.ItemId == param.itemId);
+
+                System.IO.File.Delete(ia.AttrubuteValue);
+
+                db.ItemAttributes.Remove(ia);
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
             }
             catch (System.Exception e)
             {
@@ -1150,9 +1203,36 @@ namespace SCMR_Api.Controllers
                         .Include(c => c.ParentCategory)
                         .Include(c => c.Attributes)
                             .ThenInclude(c => c.AttributeOptions)
+                        .Include(c => c.Attributes)
+                            .ThenInclude(c => c.Question)
+                                .ThenInclude(c => c.QuestionOptions)
                     .ToListAsync();
 
-                var attrs = await getAttrForCat(catId);
+                var attributes = await getAttrForCat(catId);
+
+                var attrs = attributes.Select(c => new
+                {
+                    Id = c.Id,
+                    Order = c.Order,
+                    AttrType = c.AttrType,
+                    UnitId = c.UnitId,
+                    Title = c.AttrType == AttrType.Question ? c.Question.Name : c.Title,
+                    Placeholder = c.Placeholder,
+                    Desc = c.Desc,
+                    Values = c.Values,
+                    MaxFileSize = c.MaxFileSize,
+                    CategoryId = c.CategoryId,
+                    AttributeOptions = c.getAttributeOptions(true, c.AttrType, c.AttributeOptions, c.Question == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
+                    Score = c.Score,
+                    QuestionId = c.QuestionId,
+                    QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
+                    ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent,
+                    IsInClient = c.IsInClient,
+                    IsRequired = c.IsRequired,
+                    IsUniq = c.IsUniq,
+                    IsInShowInfo = c.IsInShowInfo,
+                    IsInSearch = c.IsInSearch
+                });
 
                 byte[] fileContents;
 
@@ -1193,7 +1273,7 @@ namespace SCMR_Api.Controllers
                         worksheet.Cells[1 + (index + 1), 5].Value = item.RahCode;
                         worksheet.Cells[1 + (index + 1), 6].Value = item.UnitString;
                         worksheet.Cells[1 + (index + 1), 7].Value = item.CategoryString;
-                        worksheet.Cells[1 + (index + 1), 8].Value = getTotalScoreForItem(attrs.ToList(), item.ItemAttribute.ToList());
+                        worksheet.Cells[1 + (index + 1), 8].Value = getTotalScoreForItem(attrs, item.ItemAttribute.ToList());
 
                         foreach (var (attr, i) in attrs.OrderBy(c => c.UnitId).ThenBy(c => c.Order).WithIndex())
                         {
@@ -1226,9 +1306,9 @@ namespace SCMR_Api.Controllers
 
                                     worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = value;
                                 }
-                                else if (itemAttr.Attribute.AttrType == AttrType.radiobutton || itemAttr.Attribute.AttrType == AttrType.combobox)
+                                else if (attr.AttrType == AttrType.radiobutton || attr.AttrType == AttrType.combobox || (attr.AttrType == AttrType.Question && attr.QuestionType == 2))
                                 {
-                                    var attrOptions = itemAttr.Attribute.AttributeOptions;
+                                    var attrOptions = attr.AttributeOptions;
 
                                     var value = "";
                                     var isTrue = false;
@@ -1238,7 +1318,7 @@ namespace SCMR_Api.Controllers
                                     {
                                         haveTrue = attrOptions.Any(c => c.IsTrue);
 
-                                        if (attrOptions.Any(c => c.Id.ToString() == itemAttr.AttrubuteValue))
+                                        if (attrOptions.Any(c => c.Id.ToString() == itemAttr.AttrubuteValue) && attr.AttrType != AttrType.Question)
                                         {
                                             value = attrOptions.FirstOrDefault(c => c.Id.ToString() == itemAttr.AttrubuteValue).Title;
                                         }
@@ -1263,7 +1343,7 @@ namespace SCMR_Api.Controllers
                                     {
                                         worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
                                         worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Style.Fill.BackgroundColor.SetColor(isTrue ? Color.LightGreen : Color.IndianRed);
-                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].AddComment($"امتیاز این فیلد {itemAttr.Attribute.Score}", "Mabna");
+                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].AddComment($"امتیاز این فیلد {attr.Score}", "Mabna");
                                     }
                                 }
                                 else
@@ -1282,7 +1362,7 @@ namespace SCMR_Api.Controllers
                     var date = DateTime.Now;
                     var persianDateString = pc.GetYear(date).ToString() + pc.GetMonth(date).ToString("0#") + pc.GetDayOfMonth(date).ToString("0#") + pc.GetHour(date).ToString("0#") + pc.GetMinute(date).ToString("0#") + pc.GetSecond(date).ToString("0#");
 
-                    var name = $"{cat.Title.Trim()}_{persianDateString}";
+                    var name = $"{cat.Id}_{persianDateString}";
 
                     var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, $"Items_" + name + ".xlsx");
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
@@ -1303,21 +1383,21 @@ namespace SCMR_Api.Controllers
             }
         }
 
-        private double getTotalScoreForItem(List<Model.Attribute> attributes, List<ItemAttribute> itemAttributes)
+        private double getTotalScoreForItem(IEnumerable<dynamic> attributes, List<ItemAttribute> itemAttributes)
         {
             double score = 0;
 
-            attributes.ForEach(attr =>
+            foreach (var attr in attributes)
             {
                 var itemAttr = itemAttributes.FirstOrDefault(c => c.AttributeId == attr.Id);
 
                 if (itemAttr != null)
                 {
-                    if (attr.AttrType == AttrType.radiobutton || attr.AttrType == AttrType.combobox)
+                    if (attr.AttrType == AttrType.radiobutton || attr.AttrType == AttrType.combobox || (attr.AttrType == AttrType.Question && attr.QuestionType == 2))
                     {
-                        var attrOptions = attr.AttributeOptions;
+                        IEnumerable<dynamic> attrOptions = attr.AttributeOptions;
 
-                        if (attrOptions.Count != 0 && attrOptions.Any(c => c.IsTrue))
+                        if (attrOptions.Count() != 0 && attrOptions.Any(c => c.IsTrue))
                         {
                             if (attrOptions.FirstOrDefault(c => c.IsTrue).Id.ToString() == itemAttr.AttrubuteValue)
                             {
@@ -1326,7 +1406,7 @@ namespace SCMR_Api.Controllers
                         }
                     }
                 }
-            });
+            }
 
             return score;
         }
@@ -1690,6 +1770,18 @@ namespace SCMR_Api.Controllers
         }
     }
 
+    public class removeItemAttrFileParam
+    {
+        public int attrId { get; set; }
+        public int itemId { get; set; }
+    }
+
+    public class SetItemAttributeScoreParam
+    {
+        public ItemAttribute itemAttr { get; set; }
+        public double score { get; set; }
+    }
+
     public class LoginForRegisterCatParam
     {
         public int catId { get; set; }
@@ -1776,6 +1868,7 @@ namespace SCMR_Api.Controllers
 
         public string state { get; set; }
 
+        public int Type { get; set; }
     }
 
     public class AttrValSearch

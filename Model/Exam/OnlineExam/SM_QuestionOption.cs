@@ -15,6 +15,7 @@ namespace SCMR_Api.Model
         [Column("QueOp.id")]
         public int Id { get; set; }
 
+        public string Title { get; set; }
 
         [Column("QueOp.name")]
         public string Name { get; set; }

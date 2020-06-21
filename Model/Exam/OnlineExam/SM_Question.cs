@@ -56,11 +56,7 @@ namespace SCMR_Api.Model
         [Column("Que.Desc")]
         public string Desc2 { get; set; }
 
-
-        public int QuestionCategoryId { get; set; }        
-
-        [ForeignKey("QuestionCategoryId")]
-        public virtual QuestionCategory QuestionCategory { get; set; }
+        public string ComplatabelContent { get; set; }
 
 
 
@@ -70,46 +66,27 @@ namespace SCMR_Api.Model
         [ForeignKey("CourseId")]
         public virtual Course Course { get; set; }
 
-
         public virtual IList<QuestionOption> QuestionOptions { get; set; }
-        
+
+
+
         [NotMapped]
         public virtual List<OnlineExamQuestion> OnlineExamQuestions { get; set; }
 
+        [NotMapped]
+        public int QuestionCategoryId { get; set; }
 
-        public string gradeName
-        {
-            get
-            {
-                if (Grade == null)
-                {
-                    return "";
-                }
+        [NotMapped]
+        [ForeignKey("QuestionCategoryId")]
+        public virtual QuestionCategory QuestionCategory { get; set; }
 
-                return Grade.Name;
-            }
-        }
 
-        public string courseName
-        {
-            get
-            {
-                if (Course == null)
-                {
-                    return "";
-                }
 
-                return Course.Name;
-            }
-        }
+        public string gradeName => Grade == null ? "" : Grade.Name;
 
-        public string markString
-        {
-            get
-            {
-                return Mark.ToString("#.##");
-            }
-        }
+        public string courseName => Course == null ? "" : Course.Name;
+
+        public string markString => Mark.ToString("#.##");
 
 
     }

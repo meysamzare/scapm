@@ -24,11 +24,13 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Add([FromBody] Question question)
+        public async Task<IActionResult> Add([FromBody] QuestionAddParam param)
         {
             try
             {
-                await db.Questions.AddAsync(question);
+                param.question.QuestionOptions = param.options.ToList();
+
+                await db.Questions.AddAsync(param.question);
 
                 await db.SaveChangesAsync();
 
@@ -67,6 +69,7 @@ namespace SCMR_Api.Controllers
                 que.Answer = question.Answer;
                 que.Desc1 = question.Desc1;
                 que.Desc2 = question.Desc2;
+                que.ComplatabelContent = question.ComplatabelContent;
 
                 await db.SaveChangesAsync();
 
@@ -96,7 +99,7 @@ namespace SCMR_Api.Controllers
                 var que = db.Questions
                     .Select(c => new
                     {
-                        Id =c.Id,
+                        Id = c.Id,
                         Name = c.Name,
                         Title = c.Title,
                         gradeName = c.Grade.Name,
@@ -230,13 +233,57 @@ namespace SCMR_Api.Controllers
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> getOptions([FromBody] int questionId)
+        {
+            try
+            {
+                var options = await db.QuestionOptions.Where(c => c.QuestionId == questionId).ToListAsync();
+
+
+                return this.DataFunction(true, options);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SetTrueOption([FromBody] QuestionOption option)
+        {
+            try
+            {
+                var isTrue = !option.IsTrue;
+
+
+                await db.QuestionOptions.Where(c => c.QuestionId == option.QuestionId).ForEachAsync(op =>
+                {
+                    op.IsTrue = false;
+                });
+
+
+                var questionOption = await db.QuestionOptions.FirstOrDefaultAsync(c => c.Id == option.Id);
+
+                questionOption.IsTrue = isTrue;
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> getAllPersons()
         {
             try
             {
-                var que = await db.Questions.Select(c => c.Person).ToArrayAsync();
+                var que = await db.Questions.Select(c => c.Person).Distinct().ToArrayAsync();
 
                 return this.DataFunction(true, que);
             }
@@ -311,5 +358,12 @@ namespace SCMR_Api.Controllers
             }
         }
 
+    }
+
+    public class QuestionAddParam
+    {
+        public Question question { get; set; }
+
+        public QuestionOption[] options { get; set; }
     }
 }

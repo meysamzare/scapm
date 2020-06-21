@@ -1,31 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 
 namespace SCMR_Api.Model
 {
-	public class Item
-	{
-		public Item()
-		{
+    public class Item
+    {
+        public Item()
+        {
 
-		}
+        }
 
-		[Key]
-		public int Id { get; set; }
+        [Key]
+        public int Id { get; set; }
 
-		[MaxLength(50)]
-		public string Title { get; set; }
+        public string Title { get; set; }
 
-		public bool IsActive { get; set; }
+        public bool IsActive { get; set; }
 
-		public string Tags { get; set; }
+        public string Tags { get; set; }
 
-		public long RahCode { get; set; }
+        public long RahCode { get; set; }
 
-		public DateTime? DateAdd { get; set; }
+        public DateTime? DateAdd { get; set; }
 
-		public DateTime? DateEdit { get; set; }
+        public DateTime? DateEdit { get; set; }
 
 
         public string AuthorizedFullName { get; set; }
@@ -33,95 +33,43 @@ namespace SCMR_Api.Model
         public CategoryAuthorizeState AuthorizedType { get; set; }
 
 
-		public int UnitId { get; set; }
+        public int UnitId { get; set; }
 
-		public int CategoryId { get; set; }
-
-
-
-		public virtual Unit Unit { get; set; }
-
-		public virtual Category Category { get; set; }
+        public int CategoryId { get; set; }
 
 
 
-		public virtual IList<ItemAttribute> ItemAttribute { get; set; }
+        public virtual Unit Unit { get; set; }
+
+        public virtual Category Category { get; set; }
 
 
 
-		public string UnitString
-		{
-			get
-			{
-				if (Unit == null)
-				{
-					return "";
-				}
+        public virtual IList<ItemAttribute> ItemAttribute { get; set; }
 
-				return Unit.Title;
-			}
-		}
 
-		public string CategoryString
-		{
-			get
-			{
-				if (Category == null)
-				{
-					return "";
-				}
+        public string getTotalScore
+        {
+            get
+            {
+                if (ItemAttribute == null)
+                {
+                    return "0";
+                }
 
-				return Category.Title;
-			}
-		}
+                return ItemAttribute.ToList().Sum(c => double.Parse(c.scoreString)).ToString();
+            }
+        }
 
-		public int CategoryRoleAccess
-		{
-			get
-			{
-				if (Category == null)
-				{
-					return 0;
-				}
+        public string UnitString => Unit == null ? "" : Unit.Title;
 
-				return Category.RoleAccess;
-			}
-		}
+        public string CategoryString => Category == null ? "" : Category.Title;
 
-		public string DateAddPersian
-		{
-			get
-			{
-				if (DateAdd == null)
-				{
-					return "";
-				}
+        public int CategoryRoleAccess => Category == null ? 0 : Category.RoleAccess;
 
-				if (DateAdd.Value < new DateTime(0622, 12, 30))
-				{
-					return "";
-				}
+        public string DateAddPersian => DateAdd == null ? "" : DateAdd.Value.ToPersianDate();
 
-				return DateAdd.Value.ToPersianDate();
-			}
-		}
+        public string DateEditPersian => DateEdit == null ? "" : DateEdit.Value.ToPersianDate();
 
-		public string DateEditPersian
-		{
-			get
-			{
-				if (DateEdit == null)
-				{
-					return "";
-				}
-
-				if (DateEdit.Value < new DateTime(0622, 12, 30))
-				{
-					return "";
-				}
-
-				return DateEdit.Value.ToPersianDate();
-			}
-		}
-	}
+    }
 }

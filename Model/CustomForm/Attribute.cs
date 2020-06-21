@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 
 namespace SCMR_Api.Model
@@ -33,7 +34,6 @@ namespace SCMR_Api.Model
 
         public int Order { get; set; }
 
-
         public bool IsInClient { get; set; }
         public bool IsInShowInfo { get; set; }
         public bool IsInSearch { get; set; }
@@ -43,45 +43,67 @@ namespace SCMR_Api.Model
         public string Placeholder { get; set; }
         public bool IsRequired { get; set; }
 
-
         public bool IsMeliCode { get; set; }
 
+        public double Score { get; set; }
+
+
+        public int? QuestionId { get; set; }
+
+
+        #region Relations
 
         public virtual Unit Unit { get; set; }
         public virtual Category Category { get; set; }
         public virtual IList<ItemAttribute> ItemAttribute { get; set; }
-
-
         public virtual List<AttributeOption> AttributeOptions { get; set; }
+
+        [ForeignKey("QuestionId")]
+        public virtual Question Question { get; set; }
+
+        #endregion
+
+        #region CalculationProperties
 
         public bool haveAnyOption => AttributeOptions == null ? false : AttributeOptions.Any();
         public bool haveAnyTrueOption => AttributeOptions == null ? false : AttributeOptions.Any(c => c.IsTrue);
 
-        public double Score { get; set; }
+        public int OrderInt => Order == 0 ? 1 : Order;
 
-        public int OrderInt
+        public bool HaveItemAttr => ItemAttribute == null ? false : ItemAttribute.Any();
+
+        public string CatTitle => Category == null ? "" : Category.Title;
+
+        public string UnitTitle => Unit == null ? "" : Unit.Title;
+
+        public List<AttributeOption> getAttributeOptions(bool withIsTrue, AttrType attrType, List<AttributeOption> options, List<QuestionOption> questionOptions)
         {
-            get
-            {
-                if (Order == 0)
-                {
-                    return 1;
-                }
+            var AttrOptions = new List<AttributeOption>();
 
-                return Order;
+            if (attrType == AttrType.Question && questionOptions.Any())
+            {
+                questionOptions.ForEach(op => AttrOptions.Add(new AttributeOption
+                {
+                    Id = op.Id,
+                    Title = op.Name,
+                    IsTrue = op.IsTrue
+                }));
             }
-        }
-
-        public bool HaveItemAttr
-        {
-            get
+            else
             {
-                if (ItemAttribute == null)
+                if (options != null)
                 {
-                    return false;
+                    AttrOptions = options;
                 }
+            }
 
-                return ItemAttribute.Any();
+            if (withIsTrue)
+            {
+                return AttrOptions;
+            }
+            else
+            {
+                return AttrOptions.Any() ? AttrOptions.Select(c => new AttributeOption { Id = c.Id, Title = c.Title }).ToList() : new List<AttributeOption>();
             }
         }
 
@@ -128,6 +150,10 @@ namespace SCMR_Api.Model
                 if (AttrType == AttrType.radiobutton)
                 {
                     return "لیست گزینشی";
+                }
+                if (AttrType == AttrType.Question)
+                {
+                    return "بانک سوالات";
                 }
 
 
@@ -178,6 +204,10 @@ namespace SCMR_Api.Model
                 {
                     return 10;
                 }
+                if (AttrType == AttrType.Question)
+                {
+                    return 11;
+                }
 
                 return 1;
             }
@@ -225,32 +255,15 @@ namespace SCMR_Api.Model
             {
                 return 10;
             }
+            if (attrType == AttrType.Question)
+            {
+                return 11;
+            }
 
             return 1;
         }
 
-        public string CatTitle
-        {
-            get
-            {
-                if (Category == null)
-                {
-                    return "";
-                }
-                return Category.Title;
-            }
-        }
-        public string UnitTitle
-        {
-            get
-            {
-                if (Unit == null)
-                {
-                    return "";
-                }
-                return Unit.Title;
-            }
-        }
+        #endregion
     }
 
     public enum AttrType
@@ -264,7 +277,8 @@ namespace SCMR_Api.Model
         pic = 7,
         file = 8,
         textarea = 9,
-        radiobutton = 10
+        radiobutton = 10,
+        Question = 11
     }
 }
 
