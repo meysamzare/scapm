@@ -38,7 +38,12 @@ namespace SCMR_Api.Model
         {
             get
             {
-                return getScore(this, Attribute, Score).ToString("#,#0");
+                if (Attribute != null && Attribute.Question != null)
+                {
+                    return getScore(this, Attribute, Score).ToString("#,#0");
+                }
+
+                return "0.0";
             }
         }
 

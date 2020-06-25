@@ -333,6 +333,21 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> getAllByTeacher([FromBody] getAllByTeacherParam param)
+        {
+            try
+            {
+                var cats = await db.Categories.Where(c => c.TeachersIdAccess == null ? false : c.TeachersIdAccess.Contains(param.teacherId) && c.Type == (CategoryTotalType)param.type).ToListAsync();
+
+                return this.DataFunction(true, cats);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> togglePin([FromBody] int id)
         {
             try
@@ -813,6 +828,12 @@ namespace SCMR_Api.Controllers
             return items;
         }
 
+    }
+
+    public class getAllByTeacherParam
+    {
+        public int type { get; set; } = 0;
+        public int teacherId { get; set; }
     }
 
     public class ChangeCheckablePropertyParam
