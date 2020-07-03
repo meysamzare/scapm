@@ -104,16 +104,6 @@ namespace SCMR_Api.Controllers
                 year.DateStart = yeareducation.dateStart;
                 year.DateEnd = yeareducation.dateEnd;
 
-                if (datestbefore != yeareducation.dateStart)
-                {
-                    year.DateStart = year.DateStart.AddDays(1);
-                }
-
-                if (dateedbefore != yeareducation.dateEnd)
-                {
-                    year.DateEnd = year.DateEnd.AddDays(1);
-                }
-
                 await db.SaveChangesAsync();
 
                 return this.SuccessFunction();
