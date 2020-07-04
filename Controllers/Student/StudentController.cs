@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Linq;
@@ -14,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using SCMR_Api.Model;
 
 namespace SCMR_Api.Controllers
@@ -240,7 +242,7 @@ namespace SCMR_Api.Controllers
                     student.BirthDate = student.BirthDate.AddDays(1);
                 }
 
-                
+
                 if (await db.Students.Except(db.Students.Where(c => c.Id == studentp.Id)).AnyAsync(c => c.IdNumber2 == studentp.IdNumber2))
                 {
                     return this.UnSuccessFunction("این کد ملی قبلا ثبت شده است");
@@ -899,6 +901,138 @@ namespace SCMR_Api.Controllers
                 }
 
                 return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> getDataToExcel()
+        {
+            try
+            {
+                var students = await db.Students.Include(c => c.StudentInfo).ToListAsync();
+
+                byte[] fileContents;
+
+                var sheatTitle = "لیست دانش آموزان";
+
+                PersianCalendar pc = new PersianCalendar();
+                var date = DateTime.Now;
+                var persianDateString = pc.GetYear(date).ToString() + pc.GetMonth(date).ToString("0#") + pc.GetDayOfMonth(date).ToString("0#") + pc.GetHour(date).ToString("0#") + pc.GetMinute(date).ToString("0#") + pc.GetSecond(date).ToString("0#");
+
+                var fileName = $"Students_Mabna_{persianDateString}";
+
+                using (var package = new ExcelPackage())
+                {
+                    var worksheet = package.Workbook.Worksheets.Add(sheatTitle);
+                    worksheet.DefaultColWidth = 20;
+                    worksheet.DefaultRowHeight = 20;
+                    worksheet.View.RightToLeft = true;
+                    worksheet.Cells.Style.Font.Name = "B Yekan";
+                    worksheet.Cells.Style.Font.Size = 11;
+                    worksheet.Cells.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                    worksheet.Cells.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+
+
+                    worksheet.Cells[1, 1].Value = "ردیف";
+                    worksheet.Cells[1, 2].Value = "نام";
+                    worksheet.Cells[1, 3].Value = "نام خانوادگی";
+                    worksheet.Cells[1, 4].Value = "نام پدر";
+                    worksheet.Cells[1, 5].Value = "تاریخ تولد";
+                    worksheet.Cells[1, 6].Value = "شماره شناسنامه";
+                    worksheet.Cells[1, 7].Value = "شماره ملی";
+                    worksheet.Cells[1, 8].Value = "کد دانش آموز";
+                    worksheet.Cells[1, 9].Value = "سریال شناسنامه";
+                    worksheet.Cells[1, 10].Value = "کد شناسه ای آموزش و پرورش دانش آموز";
+                    worksheet.Cells[1, 11].Value = "محل تولد";
+
+
+                    worksheet.Cells[1, 12].Value = "نام و نام خانوادگی پدر";
+                    worksheet.Cells[1, 13].Value = "تحصیلات پدر";
+                    worksheet.Cells[1, 14].Value = "شغل پدر";
+                    worksheet.Cells[1, 15].Value = "تلفن همراه پدر";
+                    worksheet.Cells[1, 16].Value = "تلفن محل کار پدر";
+                    worksheet.Cells[1, 17].Value = "آدرس محل کار پدر";
+
+
+                    worksheet.Cells[1, 18].Value = "نام و نام خانوادگی مادر";
+                    worksheet.Cells[1, 19].Value = "تحصیلات مادر";
+                    worksheet.Cells[1, 20].Value = "شغل مادر";
+                    worksheet.Cells[1, 21].Value = "تلفن همراه مادر";
+                    worksheet.Cells[1, 22].Value = "تلفن محل کار مادر";
+                    worksheet.Cells[1, 23].Value = "آدرس محل کار مادر";
+
+
+                    worksheet.Cells[1, 24].Value = "نشانی منزل";
+                    worksheet.Cells[1, 25].Value = "تلفن ثابت منزل";
+                    worksheet.Cells[1, 26].Value = "وضعیت خانوادگی";
+                    worksheet.Cells[1, 27].Value = "دین، مذهب";
+
+
+                    worksheet.Cells[1, 28].Value = "شماره شبکه اجتماعی";
+                    worksheet.Cells[1, 29].Value = "آدرس پست الکترونیک";
+                    worksheet.Cells[1, 30].Value = "توضیحات";
+
+                    foreach (var (student, index) in students.WithIndex())
+                    {
+                        worksheet.Cells[1 + (index + 1), 1].Value = student.Id;
+                        worksheet.Cells[1 + (index + 1), 2].Value = student.Name;
+                        worksheet.Cells[1 + (index + 1), 3].Value = student.LastName;
+                        worksheet.Cells[1 + (index + 1), 4].Value = student.FatherName;
+                        worksheet.Cells[1 + (index + 1), 5].Value = student.BirthDate.ToPersianDate();
+                        worksheet.Cells[1 + (index + 1), 6].Value = student.IdNumber;
+                        worksheet.Cells[1 + (index + 1), 7].Value = student.IdNumber2;
+                        worksheet.Cells[1 + (index + 1), 8].Value = student.Code;
+                        worksheet.Cells[1 + (index + 1), 9].Value = student.IdCardSerial;
+                        worksheet.Cells[1 + (index + 1), 10].Value = student.OrgCode;
+                        worksheet.Cells[1 + (index + 1), 11].Value = student.BirthLocation;
+
+                        if (student.StudentInfo != null)
+                        {
+                            worksheet.Cells[1 + (index + 1), 12].Value = student.StudentInfo.FatherName;
+                            worksheet.Cells[1 + (index + 1), 13].Value = student.StudentInfo.FatherEdu;
+                            worksheet.Cells[1 + (index + 1), 14].Value = student.StudentInfo.FatherJob;
+                            worksheet.Cells[1 + (index + 1), 15].Value = student.StudentInfo.FatherPhone;
+                            worksheet.Cells[1 + (index + 1), 16].Value = student.StudentInfo.FatherJobPhone;
+                            worksheet.Cells[1 + (index + 1), 17].Value = student.StudentInfo.FatherJobAddress;
+
+
+                            worksheet.Cells[1 + (index + 1), 18].Value = student.StudentInfo.MomName;
+                            worksheet.Cells[1 + (index + 1), 19].Value = student.StudentInfo.MomEdu;
+                            worksheet.Cells[1 + (index + 1), 20].Value = student.StudentInfo.MomJob;
+                            worksheet.Cells[1 + (index + 1), 21].Value = student.StudentInfo.MomPhone;
+                            worksheet.Cells[1 + (index + 1), 22].Value = student.StudentInfo.MomJobPhone;
+                            worksheet.Cells[1 + (index + 1), 23].Value = student.StudentInfo.MomJobAddress;
+
+
+                            worksheet.Cells[1 + (index + 1), 24].Value = student.StudentInfo.HomeAddress;
+                            worksheet.Cells[1 + (index + 1), 25].Value = student.StudentInfo.HomePhone;
+                            worksheet.Cells[1 + (index + 1), 26].Value = student.StudentInfo.FamilyState;
+                            worksheet.Cells[1 + (index + 1), 27].Value = student.StudentInfo.Religion;
+
+
+                            worksheet.Cells[1 + (index + 1), 28].Value = student.StudentInfo.SocialNet;
+                            worksheet.Cells[1 + (index + 1), 29].Value = student.StudentInfo.Email;
+                            worksheet.Cells[1 + (index + 1), 30].Value = student.StudentInfo.Desc;
+                        }
+                    }
+
+                    fileContents = package.GetAsByteArray();
+
+                    var guid = System.Guid.NewGuid().ToString();
+
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, fileName + ".xlsx");
+                    Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
+
+                    System.IO.File.WriteAllBytes(path, fileContents);
+
+                    var filepath = Path.Combine("/UploadFiles", guid, fileName + ".xlsx");
+
+                    return this.SuccessFunction(redirect: filepath);
+                }
             }
             catch (System.Exception e)
             {
