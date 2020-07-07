@@ -115,9 +115,9 @@ namespace SCMR_Api.Controllers
                 .AsQueryable();
 
 
-                if (!string.IsNullOrEmpty(getparamsComplex.catName))
+                if (getparamsComplex.catId.HasValue)
                 {
-                    items = items.Where(c => c.Category.Title.Contains(getparamsComplex.catName));
+                    items = items.Where(c => c.Category.Id == getparamsComplex.catId.Value);
                 }
 
                 var state = getparamsComplex.state;
@@ -260,7 +260,7 @@ namespace SCMR_Api.Controllers
                 }
                 else
                 {
-                    items = items.OrderBy(c => c.Id);
+                    items = items.OrderByDescending(c => c.Id);
                 }
 
                 items = items.Skip((getparamsComplex.param.pageIndex - 1) * getparamsComplex.param.pageSize);
@@ -1862,7 +1862,7 @@ namespace SCMR_Api.Controllers
     {
         public getparams param { get; set; }
 
-        public string catName { get; set; }
+        public int? catId { get; set; }
 
         public List<AttrValSearch> attrvalsearch { get; set; }
 
