@@ -20,7 +20,7 @@ namespace SCMR_Api.Model
 
         public string Values { get; set; }
 
-        public int CategoryId { get; set; }
+        public int? CategoryId { get; set; }
 
         public int UnitId { get; set; }
 
@@ -51,10 +51,16 @@ namespace SCMR_Api.Model
         public int? QuestionId { get; set; }
 
 
+        public bool IsTemplate { get; set; }
+
+
         #region Relations
 
         public virtual Unit Unit { get; set; }
+
+        [ForeignKey("CategoryId")]
         public virtual Category Category { get; set; }
+
         public virtual IList<ItemAttribute> ItemAttribute { get; set; }
         public virtual List<AttributeOption> AttributeOptions { get; set; }
 
@@ -62,6 +68,9 @@ namespace SCMR_Api.Model
         public virtual Question Question { get; set; }
 
         #endregion
+
+
+
 
         #region CalculationProperties
 
@@ -76,7 +85,7 @@ namespace SCMR_Api.Model
 
         public string UnitTitle => Unit == null ? "" : Unit.Title;
 
-        public List<AttributeOption> getAttributeOptions(bool withIsTrue, AttrType attrType, List<AttributeOption> options, List<QuestionOption> questionOptions)
+        public List<AttributeOption> getAttributeOptions(bool withIsTrue, AttrType attrType, List<AttributeOption> options, List<QuestionOption> questionOptions, bool showTitle = false)
         {
             var AttrOptions = new List<AttributeOption>();
 
@@ -85,7 +94,7 @@ namespace SCMR_Api.Model
                 questionOptions.ForEach(op => AttrOptions.Add(new AttributeOption
                 {
                     Id = op.Id,
-                    Title = op.Name,
+                    Title = showTitle ? op.Title : op.Name, 
                     IsTrue = op.IsTrue
                 }));
             }
@@ -261,6 +270,57 @@ namespace SCMR_Api.Model
             }
 
             return 1;
+        }
+
+        public string AttrTypeToString(AttrType attrType)
+        {
+            if (attrType == AttrType.text)
+            {
+                return "متن";
+            }
+            if (attrType == AttrType.number)
+            {
+                return "عدد";
+            }
+            if (attrType == AttrType.date)
+            {
+                return "تاریخ";
+            }
+            if (attrType == AttrType.checkbox)
+            {
+                return "چک باکس";
+            }
+            if (attrType == AttrType.password)
+            {
+                return "کلمه عبور";
+            }
+            if (attrType == AttrType.combobox)
+            {
+                return "لیست";
+            }
+            if (attrType == AttrType.pic)
+            {
+                return "تصویر";
+            }
+            if (attrType == AttrType.file)
+            {
+                return "فایل";
+            }
+            if (attrType == AttrType.textarea)
+            {
+                return "متن طولانی";
+            }
+            if (attrType == AttrType.radiobutton)
+            {
+                return "لیست گزینشی";
+            }
+            if (attrType == AttrType.Question)
+            {
+                return "بانک سوالات";
+            }
+
+
+            return "";
         }
 
         #endregion

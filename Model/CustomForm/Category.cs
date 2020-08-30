@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
+using SCMR_Api.Controllers;
 
 namespace SCMR_Api.Model
 {
@@ -69,10 +70,24 @@ namespace SCMR_Api.Model
 
         public bool RandomAttributeOption { get; set; }
 
-        
+
+        public int? CourseId { get; set; }
+
+        public int? ExamTypeId { get; set; }
+
+        public int? WorkbookId { get; set; }
+
+
+
         public int[] TeachersIdAccess { get; set; }
 
         
+        public bool ShowScoreAfterDone { get; set; }
+
+
+        public bool CalculateNegativeScore { get; set; }
+
+
 
         #region Relations
 
@@ -89,6 +104,15 @@ namespace SCMR_Api.Model
 
         [ForeignKey("ClassId")]
         public virtual Class Class { get; set; }
+
+        [ForeignKey("CourseId")]
+        public virtual Course Course { get; set; }
+
+        [ForeignKey("ExamTypeId")]
+        public virtual ExamType ExamType { get; set; }
+
+        [ForeignKey("WorkbookId")]
+        public virtual Workbook Workbook { get; set; }
 
         #endregion
 
@@ -128,6 +152,49 @@ namespace SCMR_Api.Model
 
         public string timePublish => DatePublish.HasValue ? DatePublish.Value.ToString("HH:mm") : "00:00";
 
+        public static explicit operator Category(AddCategoryParam v)
+        {
+            var cat = new Category
+            {
+                Id = v.id,
+                Title = v.title,
+                ParentId = v.parentId,
+                Desc = v.desc,
+                DatePublish = v.datePublish,
+                DateExpire = v.dateExpire,
+                IsActive = v.isActive,
+                EndMessage = v.endMessage,
+                HaveInfo = v.haveInfo,
+                IsInfoShow = v.isInfoShow,
+                ActiveMessage = v.activeMessage,
+                DeActiveMessage = v.deActiveMessage,
+                RoleAccess = v.roleAccess,
+                HaveEntringCard = v.haveEntringCard,
+                BtnTitle = v.btnTitle,
+                ShowRow = (ShowRow)v.showRow,
+                PostType = v.postType,
+                RegisterPicUrl = v.registerPicUrl,
+                ShowInfoPicUrl = v.showInfoPicUrl,
+                HeaderPicUrl = v.headerPicUrl,
+                AuthorizeState = v.authorizeState,
+                License = v.license,
+                IsPined = v.isPined,
+                Type = v.type,
+                GradeId = v.gradeId,
+                ClassId = v.classId,
+                RandomAttribute = v.randomAttribute,
+                RandomAttributeOption = v.randomAttributeOption,
+                CourseId = v.courseId,
+                ExamTypeId = v.examTypeId,
+                WorkbookId = v.workbookId,
+                TeachersIdAccess = v.teachersIdAccess,
+                ShowScoreAfterDone = v.showScoreAfterDone,
+                CalculateNegativeScore = v.calculateNegativeScore
+            };
+
+            return cat;
+        }
+
         public string timeExpire => DateExpire.HasValue ? DateExpire.Value.ToString("HH:mm") : "00:00";
 
         public double formatedDateEnd => DateExpire.HasValue ? (DateExpire.Value - DateTime.Now).TotalSeconds : 0;
@@ -158,6 +225,61 @@ namespace SCMR_Api.Model
         #endregion
 
 
+
+        #region functions
+
+        public double getTotalScore(List<Model.Attribute> attrs)
+        {
+            double sum = 0;
+
+            attrs.ForEach(attr =>
+            {
+                if (attr.AttrType == AttrType.combobox || attr.AttrType == AttrType.radiobutton || attr.AttrType == AttrType.Question)
+                {
+                    sum += attr.Score;
+                }
+            });
+
+            return sum;
+        }
+
+
+        public bool canShowByWorkBook(Workbook workbook)
+        {
+            if (workbook != null)
+            {
+                return workbook.IsShow;
+            }
+
+            return true;
+        }
+
+        public double getMin_Avg_MaxInOnlineExam(List<Item> items, ScoreType type)
+        {
+            if (!items.Any())
+            {
+                return 0.0;
+            }
+
+            if (type == ScoreType.Min)
+            {
+                return double.Parse(items.Min(c => c.getTotalScoreDouble).ToString("0.##"));
+            }
+
+            if (type == ScoreType.Avg)
+            {
+                return double.Parse(items.Average(c => c.getTotalScoreDouble).ToString("0.##"));
+            }
+
+            if (type == ScoreType.Max)
+            {
+                return double.Parse(items.Max(c => c.getTotalScoreDouble).ToString("0.##"));
+            }
+
+            return 0.0;
+        }
+
+        #endregion
     }
 
     public enum ShowRow

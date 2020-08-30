@@ -7,10 +7,7 @@ namespace SCMR_Api.Model
 {
     public class Item
     {
-        public Item()
-        {
-
-        }
+        public Item() { }
 
         [Key]
         public int Id { get; set; }
@@ -57,8 +54,31 @@ namespace SCMR_Api.Model
                     return "0";
                 }
 
-                return ItemAttribute.ToList().Sum(c => double.Parse(c.scoreString)).ToString();
+                return ItemAttribute.ToList().Sum(c => double.Parse(c.scoreString)).ToString("#,#0");
             }
+        }
+
+        public double getTotalScoreDouble
+        {
+            get
+            {
+                if (ItemAttribute == null)
+                {
+                    return 0.0;
+                }
+
+                return ItemAttribute.ToList().Sum(c => double.Parse(c.scoreString));
+            }
+        }
+
+        public double getTotalScoreFunction(IList<ItemAttribute> itemAttrs)
+        {
+            if (itemAttrs == null)
+            {
+                return 0.0;
+            }
+
+            return itemAttrs.ToList().Sum(c => double.Parse(c.scoreString));
         }
 
         public string UnitString => Unit == null ? "" : Unit.Title;
@@ -70,6 +90,31 @@ namespace SCMR_Api.Model
         public string DateAddPersian => DateAdd == null ? "" : DateAdd.Value.ToPersianDate();
 
         public string DateEditPersian => DateEdit == null ? "" : DateEdit.Value.ToPersianDate();
+
+
+        public string getRating(List<Item> items, double score)
+        {
+            if (items != null && items.Any())
+            {
+                var scores = items.OrderByDescending(c => c.getTotalScoreDouble).Select(c => c.getTotalScoreDouble).Distinct().ToList();
+
+
+                var rate = "";
+
+                try
+                {
+                    rate = (scores.FindIndex(c => c == score) + 1).ToString();
+                }
+                catch
+                {
+                    rate = "---";
+                }
+
+                return rate;
+            }
+
+            return "";
+        }
 
     }
 }

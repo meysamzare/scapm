@@ -171,20 +171,11 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var students = new List<Student>();
-                var stdClassMngs = db.StdClassMngs.Include(c => c.Student).AsQueryable();
-
                 var nowYeareducationId = await this.getActiveYeareducationId();
 
-                stdClassMngs.Where(c => c.YeareducationId == nowYeareducationId);
-
-                await stdClassMngs.ForEachAsync(c =>
-                {
-                    // if (!students.Any(s => s.Id == c.Student.Id))
-                    // {
-                    students.Add(c.Student);
-                    // }
-                });
+                var students = await db.StdClassMngs
+                    .Where(c => c.YeareducationId == nowYeareducationId)
+                    .Select(c => c.Student).Distinct().ToListAsync();
 
                 return this.DataFunction(true, students);
             }

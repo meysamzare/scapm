@@ -88,7 +88,43 @@ namespace SCMR_Api.Model
 
         public string markString => Mark.ToString("#.##");
 
+        public string getTypeString(QueType type)
+        {
+            if (type == QueType.Tashrihe)
+            {
+                return "تشریحی";
+            }
+            if (type == QueType.Test)
+            {
+                return "تستی";
+            }
+            if (type == QueType.Replace)
+            {
+                return "جایگزینی";
+            }
+            if (type == QueType.True_False)
+            {
+                return "صحیح غلط";
+            }
+            return "";
+        }
 
+        public string getDefctString(QueDefact def)
+        {
+            if (def == QueDefact.Easy)
+            {
+                return "آسان";
+            }
+            if (def == QueDefact.Modrate)
+            {
+                return "متوسط";
+            }
+            if (def == QueDefact.Hard)
+            {
+                return "سخت";
+            }
+            return "";
+        }
     }
 
 

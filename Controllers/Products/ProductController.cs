@@ -254,6 +254,7 @@ namespace SCMR_Api.Controllers
                 var products = db.Products
                         .Include(c => c.Writer)
                         .Include(c => c.ProductCategory)
+                        .Include(c => c.Links)
                     .Where(c => c.TotalType == (ProductTotalType)param.totalType)
                 .AsQueryable();
 
@@ -304,7 +305,7 @@ namespace SCMR_Api.Controllers
                         Id = c.Id,
                         Title = c.Title,
                         Type = c.Type,
-                        Value = c.Value,
+                        Value = c.Links.Count,
                         TotalPrice = c.TotalPrice.ToString("#,##0"),
                         writerString = c.Writer.FullName,
                         writerPic = c.Writer.PicUrl,

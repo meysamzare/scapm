@@ -258,6 +258,51 @@ namespace SCMR_Api.Controllers
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> getForModal([FromBody] getForModalParam param)
+        {
+            try
+            {
+                var pics = db.Pictures.AsQueryable();
+
+                var count = 0;
+
+                var pageSize = 12;
+
+                if (!string.IsNullOrEmpty(param.searchText))
+                {
+                    pics = pics.Where(c => c.Title.Contains(param.searchText) || c.PictureGallery.Name.Contains(param.searchText));
+                }
+
+                count = await pics.CountAsync();
+
+                pics = pics.OrderByDescending(c => c.Id);
+
+                pics = pics.Skip((param.page - 1) * pageSize);
+                pics = pics.Take(pageSize);
+
+
+                var q = await pics
+                    .Select(c => new
+                    {
+                        Title = c.Title,
+                        PicUrl = c.PicUrl
+                    })
+                .ToListAsync();
+
+                return Json(new jsondata
+                {
+                    success = true,
+                    data = q,
+                    type = count.ToString()
+                });
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> getAll()
@@ -360,6 +405,12 @@ namespace SCMR_Api.Controllers
         }
 
 
+    }
+
+    public class getForModalParam
+    {
+        public string searchText { get; set; }
+        public int page { get; set; }
     }
 
     public class PictureAddGroupParam

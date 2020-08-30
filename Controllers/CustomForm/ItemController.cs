@@ -98,10 +98,12 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
-        public IActionResult Get([FromBody] getParamComplex getparamsComplex)
+        public async Task<IActionResult> Get([FromBody] getParamComplex getparamsComplex)
         {
             try
             {
+                var nowYeareducationId = await this.getActiveYeareducationId();
+
                 getparamsComplex.param.pageIndex += 1;
 
                 int count;
@@ -113,6 +115,11 @@ namespace SCMR_Api.Controllers
                         .Include(c => c.Category)
                     .Where(c => c.Category.Type == (CategoryTotalType)getparamsComplex.Type)
                 .AsQueryable();
+
+                if ((CategoryTotalType)getparamsComplex.Type == CategoryTotalType.onlineExam)
+                {
+                    items = items.Where(c => c.Category.GradeId.HasValue ? c.Category.Grade.YeareducationId == nowYeareducationId : true);
+                }
 
 
                 if (getparamsComplex.catId.HasValue)
@@ -1146,9 +1153,23 @@ namespace SCMR_Api.Controllers
 
                 await db.SaveChangesAsync();
 
-                var cat = await db.Categories.SingleAsync(c => c.Id == itemWithAttrs.catId);
+                var cat = await db.Categories
+                    .Include(c => c.Attributes)
+                .SingleAsync(c => c.Id == itemWithAttrs.catId);
 
-                return this.CustomFunction(true, cat.EndMessage, value.ToString(), null);
+                var itemIncluded = await db.Items
+                    .Include(c => c.ItemAttribute)
+                        .ThenInclude(c => c.Attribute)
+                            .ThenInclude(c => c.Question)
+                                .ThenInclude(c => c.QuestionOptions)
+                .SingleAsync(c => c.Id == itemid);
+
+                var catTotalScore = cat.getTotalScore(cat.Attributes.ToList());
+                var itemScore = itemIncluded.getTotalScore;
+
+                var scoreString = cat.ShowScoreAfterDone && cat.Type == CategoryTotalType.onlineExam ? $"\n نمره فعلی شما: {itemScore} از {catTotalScore} \n" : "";
+
+                return this.CustomFunction(true, cat.EndMessage + scoreString, value.ToString(), null);
             }
             catch (System.Exception e)
             {
@@ -1222,7 +1243,7 @@ namespace SCMR_Api.Controllers
                     Values = c.Values,
                     MaxFileSize = c.MaxFileSize,
                     CategoryId = c.CategoryId,
-                    AttributeOptions = c.getAttributeOptions(true, c.AttrType, c.AttributeOptions, c.Question == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
+                    AttributeOptions = c.getAttributeOptions(true, c.AttrType, c.AttributeOptions, c.Question == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList(), true),
                     Score = c.Score,
                     QuestionId = c.QuestionId,
                     QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
@@ -1232,7 +1253,7 @@ namespace SCMR_Api.Controllers
                     IsUniq = c.IsUniq,
                     IsInShowInfo = c.IsInShowInfo,
                     IsInSearch = c.IsInSearch
-                });
+                }).OrderBy(c => c.UnitId).ThenBy(c => c.QuestionId).ThenBy(c => c.Order);
 
                 byte[] fileContents;
 
@@ -1254,14 +1275,33 @@ namespace SCMR_Api.Controllers
                     worksheet.Cells[1, 4].Value = "تگ ها";
                     worksheet.Cells[1, 5].Value = "کد رهگیری";
                     worksheet.Cells[1, 6].Value = "واحد";
-                    worksheet.Cells[1, 7].Value = "نمونه برگ";
-                    worksheet.Cells[1, 8].Value = "امتیاز";
+                    worksheet.Cells[1, 7].Value = cat.Type == CategoryTotalType.registerForm ? "نمون برگ" : "آزمون آنلاین";
+                    worksheet.Cells[1, 8].Value = cat.Type == CategoryTotalType.registerForm ? "امتیاز" : "نمره";
+
+                    var staticColsCount = 8;
+
+                    if (cat.Type == CategoryTotalType.onlineExam)
+                    {
+                        worksheet.Cells[1, 9].Value = "غلط";
+                        worksheet.Cells[1, 10].Value = "صحیح";
+                        worksheet.Cells[1, 11].Value = "سفید";
+
+                        staticColsCount = 11;
+
+                        if (cat.CalculateNegativeScore)
+                        {
+                            worksheet.Cells[1, 12].Value = "درصد نمره";
+                            worksheet.Cells[1, 13].Value = "نمره با احتساب نمره منفی";
+
+                            staticColsCount = 13;
+                        }
+                    }
 
                     var apiurl = _config["Sites:Self"];
 
-                    foreach (var (attr, index) in attrs.OrderBy(c => c.UnitId).ThenBy(c => c.Order).WithIndex())
+                    foreach (var (attr, index) in attrs.WithIndex())
                     {
-                        worksheet.Cells[1, 8 + (index + 1)].Value = attr.Title;
+                        worksheet.Cells[1, staticColsCount + (index + 1)].Value = attr.Title;
                     }
 
                     foreach (var (item, index) in items.WithIndex())
@@ -1273,9 +1313,14 @@ namespace SCMR_Api.Controllers
                         worksheet.Cells[1 + (index + 1), 5].Value = item.RahCode;
                         worksheet.Cells[1 + (index + 1), 6].Value = item.UnitString;
                         worksheet.Cells[1 + (index + 1), 7].Value = item.CategoryString;
-                        worksheet.Cells[1 + (index + 1), 8].Value = getTotalScoreForItem(attrs, item.ItemAttribute.ToList());
+                        worksheet.Cells[1 + (index + 1), 8].Value = $"{getTotalScoreForItem(attrs, item.ItemAttribute.ToList())}/{cat.getTotalScore(cat.Attributes.ToList())}";
 
-                        foreach (var (attr, i) in attrs.OrderBy(c => c.UnitId).ThenBy(c => c.Order).WithIndex())
+
+                        var trueCount = 0;
+                        var falseCount = 0;
+                        var blankCount = 0;
+
+                        foreach (var (attr, i) in attrs.WithIndex())
                         {
                             ItemAttribute itemAttr = null;
 
@@ -1286,13 +1331,14 @@ namespace SCMR_Api.Controllers
 
                             if (itemAttr == null)
                             {
-                                worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = "";
+                                worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Value = "";
                             }
                             else
                             {
+
                                 if (!string.IsNullOrWhiteSpace(itemAttr.AttributeFilePath))
                                 {
-                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = apiurl + itemAttr.AttributeFilePath;
+                                    worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Value = apiurl + itemAttr.AttributeFilePath;
                                 }
                                 else if (itemAttr.Attribute.AttrType == AttrType.date)
                                 {
@@ -1304,7 +1350,7 @@ namespace SCMR_Api.Controllers
                                     }
                                     catch { }
 
-                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = value;
+                                    worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Value = value;
                                 }
                                 else if (attr.AttrType == AttrType.radiobutton || attr.AttrType == AttrType.combobox || (attr.AttrType == AttrType.Question && attr.QuestionType == 2))
                                 {
@@ -1312,13 +1358,14 @@ namespace SCMR_Api.Controllers
 
                                     var value = "";
                                     var isTrue = false;
+                                    var isBlank = false;
                                     var haveTrue = false;
 
                                     if (attrOptions.Count != 0)
                                     {
                                         haveTrue = attrOptions.Any(c => c.IsTrue);
 
-                                        if (attrOptions.Any(c => c.Id.ToString() == itemAttr.AttrubuteValue) && attr.AttrType != AttrType.Question)
+                                        if (attrOptions.Any(c => c.Id.ToString() == itemAttr.AttrubuteValue))
                                         {
                                             value = attrOptions.FirstOrDefault(c => c.Id.ToString() == itemAttr.AttrubuteValue).Title;
                                         }
@@ -1337,19 +1384,57 @@ namespace SCMR_Api.Controllers
                                         value = itemAttr.AttrubuteValue;
                                     }
 
-                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = value;
+                                    isBlank = haveTrue && !isTrue && string.IsNullOrEmpty(value);
+
+
+                                    worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Value = value;
 
                                     if (haveTrue)
                                     {
-                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Style.Fill.BackgroundColor.SetColor(isTrue ? Color.LightGreen : Color.IndianRed);
-                                        worksheet.Cells[1 + (index + 1), 8 + (i + 1)].AddComment($"امتیاز این فیلد {attr.Score}", "Mabna");
+                                        worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                                        worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Style.Fill.BackgroundColor.SetColor(isTrue ? Color.LightGreen : Color.IndianRed);
+                                        var catScoreTitle = cat.Type == CategoryTotalType.registerForm ? "امتیاز" : "نمره";
+                                        var attrTypeTitle = cat.Type == CategoryTotalType.registerForm ? "فیلد" : "سوال";
+                                        worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].AddComment($"{catScoreTitle} این {attrTypeTitle} {attr.Score}", "Mabna");
+
+
+                                        if (isTrue && !isBlank)
+                                        {
+                                            trueCount += 1;
+                                        }
+                                        if (!isTrue && !isBlank)
+                                        {
+                                            falseCount += 1;
+                                        }
+                                        if (!isTrue && isBlank)
+                                        {
+                                            blankCount += 1;
+
+                                            worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Style.Fill.BackgroundColor.SetColor(Color.Yellow);
+                                        }
                                     }
                                 }
                                 else
                                 {
-                                    worksheet.Cells[1 + (index + 1), 8 + (i + 1)].Value = itemAttr.AttrubuteValue;
+                                    worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Value = itemAttr.AttrubuteValue;
                                 }
+
+                            }
+                        }
+
+
+                        if (cat.Type == CategoryTotalType.onlineExam)
+                        {
+                            worksheet.Cells[1 + (index + 1), 9].Value = falseCount;
+                            worksheet.Cells[1 + (index + 1), 10].Value = trueCount;
+                            worksheet.Cells[1 + (index + 1), 11].Value = blankCount;
+
+                            if (cat.CalculateNegativeScore)
+                            {
+                                var scorePrecent = (double)((trueCount * 3) - (falseCount)) / ((trueCount + falseCount + blankCount) * 3);
+
+                                worksheet.Cells[1 + (index + 1), 12].Value = Math.Round(scorePrecent * 100, 2);
+                                worksheet.Cells[1 + (index + 1), 13].Value = Math.Round(scorePrecent * cat.getTotalScore(cat.Attributes.ToList()), 2);
                             }
                         }
                     }

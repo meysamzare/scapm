@@ -169,8 +169,9 @@ namespace SCMR_Api.Controllers
                 var query = getparams.getparam.q;
 
                 var exsc = db.ExamScores
-                    .Include(c => c.Student)
-                    .Include(c => c.Exam)
+                        .Include(c => c.Student)
+                        .Include(c => c.Exam)
+                    .Where(c => c.Exam.YeareducationId == nowYeareducationId)
                 .AsQueryable();
 
 
@@ -275,7 +276,6 @@ namespace SCMR_Api.Controllers
                         examDate = c.Exam.Date.ToPersianDate(),
                         examId = c.ExamId
                     })
-                    .Where(c => c.YeareducationId == nowYeareducationId)
                 .ToListAsync();
 
                 return Json(new jsondata
@@ -377,25 +377,56 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var examscore = await db.ExamScores
+                var examscores = await db.ExamScores
                     .Select(c => new
                     {
-                        Id = c.Id,
+                        Id = c.Id.ToString(),
                         Rating = c.getRating(c.Exam.ExamScores.ToList(), c.Score),
-                        Score = c.Score,
+                        Score = c.Score.ToString(),
                         StudentId = c.StudentId,
-                        ExamId = c.ExamId,
+                        ExamId = c.ExamId.ToString(),
                         State = c.State,
                         examName = c.Exam.Name,
                         studentName = c.Student.Name + " " + c.Student.LastName,
                         gradeId = c.Exam.GradeId,
-                        TopScore = c.Exam.TopScore
+                        TopScore = double.Parse(c.Exam.TopScore.ToString())
                     })
                     .Where(c => c.StudentId == getexamscore.studentId)
                         .Where(c => c.gradeId == getexamscore.gradeId)
                 .ToListAsync();
 
-                return this.DataFunction(true, examscore);
+                var student = await db.Students.FirstOrDefaultAsync(c => c.Id == getexamscore.studentId);
+                var stdCodeMeli = student.IdNumber2.Trim();
+
+                var items = db.Items
+                    .Include(c => c.ItemAttribute)
+                        .ThenInclude(c => c.Attribute)
+                            .ThenInclude(c => c.Question)
+                                .ThenInclude(c => c.QuestionOptions)
+                    .Include(c => c.Category)
+                        .ThenInclude(c => c.Attributes)
+                .Where(c => c.Category.Type == CategoryTotalType.onlineExam && c.Category.GradeId.HasValue ? c.Category.GradeId.Value == getexamscore.gradeId : false)
+                    .Where(c => c.Category.Attributes.Any(l => l.IsMeliCode))
+                .Where(c => c.ItemAttribute.Where(f => f.Attribute.IsMeliCode).Select(g => g.AttrubuteValue.Trim()).Contains(stdCodeMeli))
+                .ToList()
+                    .GroupBy(c => c.Category.Id)
+                        .Select(c => c.OrderByDescending(l => l.getTotalScoreDouble).FirstOrDefault());
+
+                examscores.AddRange(items.Select(c => new
+                {
+                    Id = $"OEI{c.Id}",
+                    Rating = c.getRating(c.Category.Items.ToList(), c.getTotalScoreDouble),
+                    Score = c.getTotalScore,
+                    StudentId = student.Id,
+                    ExamId = $"OE{c.Category.Id}",
+                    State = ExamScoreState.Hazer,
+                    examName = c.Category.Title,
+                    studentName = student.Name + " " + student.LastName,
+                    gradeId = c.Category.GradeId.HasValue ? c.Category.GradeId.Value : 0,
+                    TopScore = c.Category.getTotalScore(c.Category.Attributes.ToList())
+                }));
+
+                return this.DataFunction(true, examscores);
             }
             catch (System.Exception e)
             {
@@ -458,38 +489,93 @@ namespace SCMR_Api.Controllers
                     })
                 .ToListAsync();
 
+                var cats = db.Categories.Where(c => c.Type == CategoryTotalType.onlineExam && c.GradeId.HasValue ? c.GradeId.Value == param.gradeId : false
+                                && c.WorkbookId.HasValue ? c.WorkbookId.Value == param.workbookId : false && c.Attributes.Any(l => l.IsMeliCode))
+                                    .Include(c => c.Items);
+
+                var items = cats.SelectMany(c => c.Items)
+                    .Include(m => m.ItemAttribute)
+                        .ThenInclude(m => m.Attribute)
+                            .ThenInclude(m => m.Question)
+                                .ThenInclude(m => m.QuestionOptions);
+
+                var stds = new List<StudentCourseRatingParams>();
+
+
+                var Students = await db.StdClassMngs
+                    .Select(c => c.Student).Distinct()
+                    .Include(c => c.ExamScores)
+                        .ThenInclude(c => c.Exam)
+                .ToListAsync();
+
+
+                Students.ForEach(c =>
+                {
+                    var stdTemp = new StudentCourseRatingParams();
+
+                    stdTemp.Id = c.Id;
+                    stdTemp.Name = c.Name + ' ' + c.LastName;
+                    stdTemp.studentScores = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer && l.Exam.GradeId == param.gradeId)
+                            .Select(l => new ExamScoreCourseRatingParam
+                            {
+                                ExamId = l.ExamId.ToString(),
+                                Score = l.Score
+                            }).ToList();
+                    stdTemp.exams = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer && l.Exam.GradeId == param.gradeId).Select(l => l.Exam).Where(l => l.WorkbookId == param.workbookId)
+                            .Select(l => new ExamCourseRatingParam
+                            {
+                                Id = l.Id.ToString(),
+                                CourseId = l.CourseId,
+                                TopScore = l.TopScore
+                            }).ToList();
+
+                    stdTemp.onlineExams = cats.Select(l => new ExamCourseRatingParam
+                    {
+                        Id = $"OE{l.Id}",
+                        CourseId = l.CourseId.HasValue ? l.CourseId.Value : 0,
+                        TopScore = l.getTotalScore(l.Attributes.ToList())
+                    }).ToList();
+
+                    stdTemp.onlineExamScores = items.Where(v => v.ItemAttribute.Where(f => f.Attribute.IsMeliCode).Select(g => g.AttrubuteValue.Trim()).Contains(c.IdNumber2.Trim()))
+                    .Select(l => new ExamScoreCourseRatingParam
+                    {
+                        ExamId = $"OE{l.Category.Id}",
+                        Score = l.getTotalScoreFunction(l.ItemAttribute)
+                    }).ToList();
+
+
+                    stdTemp.exams.AddRange(stdTemp.onlineExams);
+                    stdTemp.studentScores.AddRange(stdTemp.onlineExamScores);
+
+                    stds.Add(stdTemp);
+                });
+
+
                 if (param.classId.HasValue)
                 {
-                    students = await db.StdClassMngs
+
+                    var studentsIdInClass = await db.StdClassMngs
                         .Where(c => c.ClassId == param.classId.Value && c.IsActive == true)
-                            .Select(c => c.Student)
+                            .Select(c => c.Student.Id)
                                 .Distinct()
-                            .Select(c => new StudentCourseRatingParams
-                            {
-                                Id = c.Id,
-                                Name = c.Name + ' ' + c.LastName,
-                                studentScores = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer && l.Exam.GradeId == param.gradeId),
-                                exams = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer && l.Exam.GradeId == param.gradeId).Select(l => l.Exam).Where(l => l.WorkbookId == param.workbookId)
-                            })
                     .ToListAsync();
+
+                    students = stds.Where(c => studentsIdInClass.Contains(c.Id));
                 }
                 else
                 {
-                    students = await db.StdClassMngs
+                    var studentsIdInGrade = await db.StdClassMngs
                         .Where(c => c.GradeId == param.gradeId && c.IsActive == true)
-                            .Select(c => c.Student)
+                            .Select(c => c.Student.Id)
                                 .Distinct()
-                            .Select(c => new StudentCourseRatingParams
-                            {
-                                Id = c.Id,
-                                Name = c.Name + ' ' + c.LastName,
-                                studentScores = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer && l.Exam.GradeId == param.gradeId),
-                                exams = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer && l.Exam.GradeId == param.gradeId).Select(l => l.Exam).Where(l => l.WorkbookId == param.workbookId)
-                            })
                     .ToListAsync();
+
+                    students = stds.Where(c => studentsIdInGrade.Contains(c.Id));
                 }
 
                 var results = new List<WorkbookDetailResult>();
+
+                var courseScores = new List<CourseScoreType>();
 
                 foreach (var std in students)
                 {
@@ -515,15 +601,36 @@ namespace SCMR_Api.Controllers
 
                         if (count != 0)
                         {
-                            avgForCourses.Add(sumScore / count);
+                            var avg = sumScore / count;
+                            avgForCourses.Add(avg);
+
+                            courseScores.Add(new CourseScoreType
+                            {
+                                courseId = course.Id,
+                                score = avg
+                            });
                         }
                         else
                         {
-                            avgForCourses.Add(0.0);
+                            if (!param.onlyShowCourseHaveScore || exams.Count() != 0)
+                            {
+                                avgForCourses.Add(0.0);
+                            }
+
+                            courseScores.Add(new CourseScoreType
+                            {
+                                courseId = course.Id,
+                                score = 0.0
+                            });
                         }
                     }
 
-                    var totalAvg = avgForCourses.Where(c => c != 0.0).Average();
+                    var totalAvg = 0.0;
+
+                    if (avgForCourses.Any(c => c != 0.0))
+                    {
+                        totalAvg = avgForCourses.Where(c => c != 0.0).Average();
+                    }
 
                     results.Add(new WorkbookDetailResult
                     {
@@ -535,14 +642,32 @@ namespace SCMR_Api.Controllers
 
                 var uniqTotalAvgs = results.Select(c => c.totalAvg).Distinct().OrderByDescending(c => c).ToList();
 
-                foreach (var result in results)
+                foreach (var (result, index) in results.WithIndex())
                 {
-                    result.rate = uniqTotalAvgs.FindIndex(c => c == result.totalAvg) + 1;
+                    results[index].rate = uniqTotalAvgs.FindIndex(c => c == result.totalAvg) + 1;
+                }
+
+                var courseHaveScore = courses;
+
+                if (param.onlyShowCourseHaveScore)
+                {
+                    var haveScoreCourses = new List<int>();
+                    courses.ForEach(course =>
+                    {
+                        var allZero = courseScores.Where(c => c.courseId == course.Id).Select(c => c.score).All(c => c == 0.0);
+
+                        if (!allZero)
+                        {
+                            haveScoreCourses.Add(course.Id);
+                        }
+                    });
+
+                    courseHaveScore = courseHaveScore.Where(c => haveScoreCourses.Contains(c.Id)).ToList();
                 }
 
                 return this.DataFunction(true, new
                 {
-                    courses = courses,
+                    courses = courseHaveScore,
                     results = results.OrderByDescending(c => c.totalAvg)
                 });
             }
@@ -577,41 +702,62 @@ namespace SCMR_Api.Controllers
                             .Distinct()
                 .ToListAsync();
 
-                var stds = db.Students.Where(c => studentsIdInGrade.Contains(c.Id))
-                .Select(c => new
+                var cats = db.Categories.Where(c => c.Type == CategoryTotalType.onlineExam && c.GradeId.HasValue ? c.GradeId.Value == param.gradeId : false
+                                && c.WorkbookId.HasValue ? c.WorkbookId.Value == param.workbookId : false && c.Attributes.Any(l => l.IsMeliCode))
+                                    .Include(c => c.Items);
+
+                var items = cats.SelectMany(c => c.Items)
+                    .Include(m => m.ItemAttribute)
+                    .ThenInclude(m => m.Attribute)
+                    .ThenInclude(m => m.Question)
+                    .ThenInclude(m => m.QuestionOptions);
+
+                var stds = new List<STDWorkbookReturn>();
+
+                var students = await db.Students.Where(c => studentsIdInGrade.Contains(c.Id))
+                    .Include(c => c.ExamScores)
+                        .ThenInclude(c => c.Exam)
+                .ToListAsync();
+                var courses = await db.Courses.Where(l => l.GradeId == param.gradeId).ToListAsync();
+
+                students.ForEach(studen =>
                 {
-                    Id = c.Id,
-                    examScores = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer && l.Exam.GradeId == param.gradeId && l.Exam.WorkbookId == param.workbookId)
-                                .Select(f => new ExamScoreForCourseAvg { Score = f.Score, TopScore = f.Exam.TopScore, CourseId = f.Exam.CourseId }).ToList(),
-                    courses = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer && l.Exam.GradeId == param.gradeId && l.Exam.WorkbookId == param.workbookId).Select(l => l.Exam.Course).Distinct().ToList()
-                })
-                .Select(c => new
-                {
-                    Id = c.Id,
-                    courseAvgs = c.courses.Select(l => l.getCourseAverageForStudent(c.examScores.Where(f => f.CourseId == l.Id).ToList(), l)).OrderBy(l => l.CourseName).ToList()
-                })
-                .Select(c => new
-                {
-                    Id = c.Id,
-                    courseAvgs = c.courseAvgs,
-                    totalAvg = getAverageOfCourseAvg(c.courseAvgs)
-                }).ToList();
+                    var stdTemp = new STDWorkbookReturn();
+
+                    stdTemp.Id = studen.Id;
+                    stdTemp.examScores = studen.ExamScores.Where(l => l.State == ExamScoreState.Hazer && l.Exam.GradeId == param.gradeId && l.Exam.WorkbookId == param.workbookId)
+                                .Select(f => new ExamScoreForCourseAvg { Score = f.Score, TopScore = double.Parse(f.Exam.TopScore.ToString()), CourseId = f.Exam.CourseId }).ToList();
+
+                    stdTemp.onlineExamScores = items
+                    .Where(v => v.ItemAttribute.Where(f => f.Attribute.IsMeliCode).Select(g => g.AttrubuteValue.Trim()).Contains(studen.IdNumber2.Trim()))
+                            .Select(l => new ExamScoreForCourseAvg
+                            {
+                                Score = l.getTotalScoreFunction(l.ItemAttribute),
+                                TopScore = l.Category.getTotalScore(l.Category.Attributes.ToList()),
+                                CourseId = l.Category.CourseId.HasValue ? l.Category.CourseId.Value : 0
+                            }).ToList();
+
+                    stdTemp.examScores.AddRange(stdTemp.onlineExamScores);
+
+
+                    stdTemp.courses = courses.Where(l => stdTemp.examScores.Select(f => f.CourseId).Contains(l.Id)).ToList();
+                    stdTemp.courseAvgs = stdTemp.courses.Select(l => l.getCourseAverageForStudent(stdTemp.examScores.Where(f => f.CourseId == l.Id).ToList(), l)).OrderBy(l => l.CourseName).ToList();
+                    stdTemp.totalAvg = getAverageOfCourseAvg(stdTemp.courseAvgs);
+
+                    stds.Add(stdTemp);
+                });
 
                 var student = stds.Find(c => c.Id == param.studentId);
 
-
                 var studentsInGrade = stds.Where(c => studentsIdInGrade.Contains(c.Id)).ToList();
-
-
 
                 var studentsIdInClass = await db.StdClassMngs
                     .Where(c => c.ClassId == param.classId && c.IsActive == true)
                         .Select(c => c.Student.Id)
                             .Distinct()
                 .ToListAsync();
+
                 var studentsInClass = stds.Where(c => studentsIdInClass.Contains(c.Id)).ToList();
-
-
 
                 headers = student.courseAvgs.Select(c => c.CourseName).ToList();
                 averagesForCourses = student.courseAvgs.Select(c => c.Average).ToList();
@@ -683,9 +829,13 @@ namespace SCMR_Api.Controllers
         }
 
 
-        private double getJustifiedScore(double score, int topScore)
+        private double getJustifiedScore(double score, double topScore)
         {
-            double mix = (double)20 / topScore;
+            double mix = 0.0;
+            if (topScore != 0.0)
+            {
+                mix = (double)20 / topScore;
+            }
 
             return (score * mix);
         }
@@ -943,6 +1093,23 @@ namespace SCMR_Api.Controllers
 
     }
 
+    internal class CourseScoreType
+    {
+        public int courseId { get; set; }
+        public double score { get; set; }
+    }
+
+    public class STDWorkbookReturn
+    {
+        public int Id { get; set; }
+        public List<ExamScoreForCourseAvg> examScores { get; set; }
+        public IEnumerable<ExamScoreForCourseAvg> onlineExamScores { get; set; }
+        public List<Course> courses { get; set; }
+        public List<CourseAvgReturn> courseAvgs { get; set; }
+        public double totalAvg { get; set; }
+        public int index { get; set; }
+    }
+
 
 
     public class WorkbookDetailResult
@@ -963,6 +1130,8 @@ namespace SCMR_Api.Controllers
         public int gradeId { get; set; }
 
         public int? classId { get; set; }
+
+        public bool onlyShowCourseHaveScore { get; set; }
     }
 
     public class TotalAverageReturn
@@ -977,9 +1146,28 @@ namespace SCMR_Api.Controllers
     {
         public int Id { get; set; }
         public string Name { get; set; }
-        public IEnumerable<ExamScore> studentScores { get; set; }
-        public IEnumerable<Exam> exams { get; set; }
-        public IEnumerable<Course> courses { get; set; }
+        public List<ExamScoreCourseRatingParam> studentScores { get; set; }
+        public List<ExamCourseRatingParam> exams { get; set; }
+        public List<Course> courses { get; set; }
+        public List<ExamCourseRatingParam> onlineExams { get; set; }
+        public List<ExamScoreCourseRatingParam> onlineExamScores { get; set; }
+    }
+
+    public class ExamCourseRatingParam
+    {
+        public string Id { get; set; }
+
+        public double TopScore { get; set; }
+
+        public int CourseId { get; set; }
+    }
+
+
+    public class ExamScoreCourseRatingParam
+    {
+        public double Score { get; set; }
+
+        public string ExamId { get; set; }
     }
 
     public class getTotalAverageByStudentGradeParam

@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20200812075723_initUpdate44_2")]
+    partial class initUpdate44_2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -149,8 +151,6 @@ namespace SCMR_Api.Migrations
                     b.Property<int>("AuthorizeState");
 
                     b.Property<string>("BtnTitle");
-
-                    b.Property<bool>("CalculateNegativeScore");
 
                     b.Property<int?>("ClassId");
 
@@ -2778,10 +2778,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2020, 8, 26, 7, 29, 29, 68, DateTimeKind.Local).AddTicks(8953),
+                            DateAdd = new DateTime(2020, 8, 12, 12, 27, 21, 916, DateTimeKind.Local).AddTicks(8012),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("a25f8872-b597-49a0-9485-2c6585ca84f1"),
+                            GId = new Guid("a69a5d8e-197f-4a21-a756-5fd73c2f7bb8"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",

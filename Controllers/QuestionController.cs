@@ -234,6 +234,73 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> getQuestions([FromBody] getQuestionsParams param)
+        {
+            try
+            {
+                var questions = db.Questions
+                    .Include(c => c.QuestionOptions)
+                .AsQueryable();
+
+                var count = 0;
+
+                var pageSize = 12;
+
+                if (param.selectedGrade.HasValue)
+                {
+                    questions = questions.Where(c => c.GradeId == param.selectedGrade.Value);
+                }
+
+                if (param.selectedCourse.HasValue)
+                {
+                    questions = questions.Where(c => c.CourseId == param.selectedCourse.Value);
+                }
+
+                if (!string.IsNullOrEmpty(param.searchText))
+                {
+                    questions = questions.Where(c => c.Name.Contains(param.searchText) || c.Title.Contains(param.searchText));
+                }
+
+                count = await questions.CountAsync();
+
+                questions = questions.OrderByDescending(c => c.Id);
+
+                questions = questions.Skip((param.page - 1) * pageSize);
+                questions = questions.Take(pageSize);
+
+
+                var q = await questions
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        Title = c.Title,
+                        typeString = c.getTypeString(c.Type),
+                        Type = c.Type,
+                        options = c.QuestionOptions.Select(l => new
+                        {
+                            Id = l.Id,
+                            Title = l.Name
+                        }),
+                        ComplatabelContent = c.ComplatabelContent,
+                        Person = c.Person,
+                        DefactString = c.getDefctString(c.Defact)
+                    })
+                .ToListAsync();
+
+                return Json(new jsondata
+                {
+                    success = true,
+                    data = q,
+                    type = count.ToString()
+                });
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> getOptions([FromBody] int questionId)
         {
             try
@@ -358,6 +425,14 @@ namespace SCMR_Api.Controllers
             }
         }
 
+    }
+
+    public class getQuestionsParams
+    {
+        public string searchText { get; set; }
+        public int page { get; set; }
+        public int? selectedGrade { get; set; }
+        public int? selectedCourse { get; set; }
     }
 
     public class QuestionAddParam

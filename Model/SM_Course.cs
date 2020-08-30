@@ -138,7 +138,7 @@ namespace SCMR_Api.Model
         }
 
 
-        private double getJustifiedScore(double score, int topScore)
+        private double getJustifiedScore(double score, double topScore)
         {
             double mix = (double)20 / topScore;
 
@@ -161,7 +161,7 @@ namespace SCMR_Api.Model
     {
         public double Score { get; set; }
 
-        public int TopScore { get; set; }
+        public double TopScore { get; set; }
 
         public int CourseId { get; set; }
     }

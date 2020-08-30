@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SCMR_Api.Model;
-using SCMR_Api.Model.Index;
 
 namespace SCMR_Api.Controllers
 {
@@ -38,12 +37,11 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Add([FromBody] Category category)
+        public async Task<IActionResult> Add([FromBody] AddCategoryParam category)
         {
             try
             {
-
-                DateTime datepublish = category.DatePublish.Value.AddDays(1);
+                DateTime datepublish = category.datePublish.AddDays(1);
                 TimeSpan timepublish;
                 if (!TimeSpan.TryParse(category.timePublish, out timepublish))
                 {
@@ -52,7 +50,7 @@ namespace SCMR_Api.Controllers
                 datepublish = datepublish.Date + timepublish;
 
 
-                DateTime dateex = category.DateExpire.Value.AddDays(1);
+                DateTime dateex = category.dateExpire.AddDays(1);
                 TimeSpan timeex;
                 if (!TimeSpan.TryParse(category.timeExpire, out timeex))
                 {
@@ -60,53 +58,55 @@ namespace SCMR_Api.Controllers
                 }
                 dateex = dateex.Date + timeex;
 
-                category.DateExpire = dateex;
-                category.DatePublish = datepublish;
+                category.dateExpire = dateex;
+                category.datePublish = datepublish;
 
-                if (!string.IsNullOrEmpty(category.RegisterFileData))
+                if (!string.IsNullOrEmpty(category.registerFileData))
                 {
                     var guid = System.Guid.NewGuid().ToString();
 
-                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, category.RegisterFileName);
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, category.registerFileName);
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
 
-                    byte[] bytes = Convert.FromBase64String(category.RegisterFileData);
+                    byte[] bytes = Convert.FromBase64String(category.registerFileData);
                     System.IO.File.WriteAllBytes(path, bytes);
 
-                    category.RegisterPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + category.RegisterFileName);
+                    category.registerPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + category.registerFileName);
                 }
 
-                if (!string.IsNullOrEmpty(category.ShowInfoFileData))
+                if (!string.IsNullOrEmpty(category.showInfoFileData))
                 {
                     var guid = System.Guid.NewGuid().ToString();
 
-                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, category.ShowInfoFileName);
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, category.showInfoFileName);
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
 
-                    byte[] bytes = Convert.FromBase64String(category.ShowInfoFileData);
+                    byte[] bytes = Convert.FromBase64String(category.showInfoFileData);
                     System.IO.File.WriteAllBytes(path, bytes);
 
-                    category.ShowInfoPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + category.ShowInfoFileName);
+                    category.showInfoPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + category.showInfoFileName);
                 }
 
-                if (!string.IsNullOrEmpty(category.HeaderPicData))
+                if (!string.IsNullOrEmpty(category.headerPicData))
                 {
                     var guid = System.Guid.NewGuid().ToString();
 
-                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, category.HeaderPicName);
+                    var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, category.headerPicName);
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
 
-                    byte[] bytes = Convert.FromBase64String(category.HeaderPicData);
+                    byte[] bytes = Convert.FromBase64String(category.headerPicData);
                     System.IO.File.WriteAllBytes(path, bytes);
 
-                    category.HeaderPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + category.HeaderPicName);
+                    category.headerPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + category.headerPicName);
                 }
 
-                db.Categories.Add(category);
+                var cat = (Category)category;
+
+                db.Categories.Add(cat);
 
                 await db.SaveChangesAsync();
 
-                return this.SuccessFunction();
+                return this.DataFunction(true, cat.Id);
             }
             catch (System.Exception e)
             {
@@ -138,6 +138,15 @@ namespace SCMR_Api.Controllers
                 cat.RandomAttributeOption = addCategory.randomAttributeOption;
 
                 cat.TeachersIdAccess = addCategory.teachersIdAccess;
+
+                cat.WorkbookId = addCategory.workbookId;
+                cat.CourseId = addCategory.courseId;
+                cat.ExamTypeId = addCategory.examTypeId;
+                cat.ClassId = addCategory.classId;
+                cat.GradeId = addCategory.gradeId;
+
+                cat.ShowScoreAfterDone = addCategory.showScoreAfterDone;
+                cat.CalculateNegativeScore = addCategory.calculateNegativeScore;
 
                 DateTime datepublish = addCategory.datePublish;
                 if (cat.DatePublish != datepublish)
@@ -451,7 +460,7 @@ namespace SCMR_Api.Controllers
                         var unit = new Unit
                         {
                             Title = course.Name,
-                            EnTitle = "Section"
+                            EnTitle = "Section (Auto Create)"
                         };
 
                         db.Units.Add(unit);
@@ -475,8 +484,9 @@ namespace SCMR_Api.Controllers
                                 AttrType = AttrType.Question,
                                 IsInClient = true,
                                 IsRequired = true,
-                                Score = 1,
-                                QuestionId = question.Id
+                                Score = question.Mark,
+                                QuestionId = question.Id,
+                                IsTemplate = false
                             };
 
                             attributes.Add(attr);
@@ -564,9 +574,9 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var getparams = param.getparams;
+                var nowYeareducationId = await this.getActiveYeareducationId();
 
-                getparams.pageIndex += 1;
+                var getparams = param.getparams;
 
                 int count;
 
@@ -578,14 +588,24 @@ namespace SCMR_Api.Controllers
                     .Where(c => c.Type == (CategoryTotalType)param.type)
                 .AsQueryable();
 
+                if ((CategoryTotalType)param.type == CategoryTotalType.onlineExam)
+                {
+                    cls = cls.Where(c => c.GradeId.HasValue ? c.Grade.YeareducationId == nowYeareducationId : true);
+                }
+
                 if (param.selectedGradeId.HasValue)
                 {
                     cls = cls.Where(c => c.GradeId == param.selectedGradeId.Value);
                 }
 
-                if (param.selectedClassId.HasValue)
+                if (param.selectedCourseId.HasValue)
                 {
-                    cls = cls.Where(c => c.ClassId == param.selectedClassId.Value);
+                    cls = cls.Where(c => c.CourseId == param.selectedCourseId);
+                }
+
+                if (param.selectedExamTypeId.HasValue)
+                {
+                    cls = cls.Where(c => c.ExamTypeId == param.selectedExamTypeId);
                 }
 
                 if (!string.IsNullOrWhiteSpace(query))
@@ -630,7 +650,7 @@ namespace SCMR_Api.Controllers
                 }
                 else
                 {
-                    cls = cls.OrderByDescending(c => c.IsPined);
+                    cls = cls.OrderByDescending(c => c.IsPined).ThenByDescending(c => c.Id);
                 }
 
                 cls = cls.Skip((getparams.pageIndex - 1) * getparams.pageSize);
@@ -648,6 +668,14 @@ namespace SCMR_Api.Controllers
                         isActive = c.IsActive,
                         haveInfo = c.HaveInfo,
                         isInfoShow = c.IsInfoShow,
+                        courseString = c.Course != null ? c.Course.Name : "",
+                        examTypeString = c.ExamType != null ? c.ExamType.Name : "",
+                        workbookString = c.Workbook != null ? c.Workbook.Name : "",
+                        datePublishString = c.DatePublish.Value.ToPersianDate(),
+                        timePublish = c.DatePublish.Value.ToShortTimeString(),
+                        dateExpireString = c.DateExpire.Value.ToPersianDate(),
+                        timeExpire = c.DateExpire.Value.ToShortTimeString(),
+                        headerPicUrl = string.IsNullOrEmpty(c.HeaderPicUrl) ? c.RegisterPicUrl : c.HeaderPicUrl
                     })
                 .ToListAsync();
 
@@ -686,6 +714,25 @@ namespace SCMR_Api.Controllers
                     return this.UnSuccessFunction("Undefined Value", "error");
                 }
 
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> getQuestionIds([FromBody] int catId)
+        {
+            try
+            {
+                var cat = await db.Categories
+                        .Include(c => c.Attributes)
+                    .FirstOrDefaultAsync(c => c.Id == catId);
+
+                var questions = cat.Attributes.Where(c => c.QuestionId.HasValue).Select(c => c.QuestionId.Value).ToList();
+
+                return this.DataFunction(true, questions);
             }
             catch (System.Exception e)
             {
@@ -859,7 +906,8 @@ namespace SCMR_Api.Controllers
         public int type { get; set; }
 
         public int? selectedGradeId { get; set; }
-        public int? selectedClassId { get; set; }
+        public int? selectedCourseId { get; set; }
+        public int? selectedExamTypeId { get; set; }
     }
 
     public class AddCategoryParam
@@ -938,6 +986,16 @@ namespace SCMR_Api.Controllers
         public bool isPined { get; set; }
 
         public int[] teachersIdAccess { get; set; }
+
+        public int? courseId { get; set; }
+
+        public int? examTypeId { get; set; }
+
+        public int? workbookId { get; set; }
+
+        public bool showScoreAfterDone { get; set; }
+        
+        public bool calculateNegativeScore { get; set; }
 
     }
 

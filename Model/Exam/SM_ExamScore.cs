@@ -60,31 +60,31 @@ namespace SCMR_Api.Model
         public string getRating(List<ExamScore> examScores, double score)
         {
             if (examScores != null)
+            {
+                if (examScores.Any(c => c.State == ExamScoreState.Hazer))
                 {
-                    if (examScores.Any(c => c.State == ExamScoreState.Hazer))
+                    var distList = examScores
+                        .Where(c => c.State == ExamScoreState.Hazer).OrderByDescending(c => c.Score)
+                            .Select(c => c.Score)
+                        .Distinct()
+                    .ToList();
+
+                    var rate = "";
+
+                    try
                     {
-                        var distList = examScores
-                            .Where(c => c.State == ExamScoreState.Hazer).OrderByDescending(c => c.Score)
-                                .Select(c => c.Score)
-                            .Distinct()
-                        .ToList();
-
-                        var rate = "";
-
-                        try
-                        {
-                            rate = (distList.FindIndex(c => c == score) + 1).ToString();
-                        }
-                        catch
-                        {
-                            rate = "---";
-                        }
-
-                        return rate;
+                        rate = (distList.FindIndex(c => c == score) + 1).ToString();
                     }
-                }
+                    catch
+                    {
+                        rate = "---";
+                    }
 
-                return "";
+                    return rate;
+                }
+            }
+
+            return "";
         }
 
         public string Rating

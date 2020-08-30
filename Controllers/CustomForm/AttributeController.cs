@@ -102,6 +102,108 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        public async Task<IActionResult> AddAttributeTempForCat([FromBody] addAttributeTempForCatParam param)
+        {
+            try
+            {
+                var attribute = await db.Attributes
+                    .Include(c => c.AttributeOptions)
+                .FirstOrDefaultAsync(c => c.Id == param.attrId);
+
+                var attr = new Model.Attribute
+                {
+                    Id = 0,
+                    Title = attribute.Title,
+                    CategoryId = param.catId,
+                    UnitId = attribute.UnitId,
+                    Desc = attribute.Desc,
+                    AttrType = attribute.AttrType,
+                    MaxFileSize = attribute.MaxFileSize,
+                    IsUniq = attribute.IsUniq,
+                    Order = attribute.Order,
+                    IsInClient = attribute.IsInClient,
+                    IsInShowInfo = attribute.IsInShowInfo,
+                    IsInSearch = attribute.IsInSearch,
+                    OrderInInfo = attribute.OrderInInfo,
+                    Placeholder = attribute.Placeholder,
+                    IsRequired = attribute.IsRequired,
+                    IsMeliCode = attribute.IsMeliCode,
+                    Score = attribute.Score,
+                    QuestionId = attribute.QuestionId,
+                    IsTemplate = false,
+                    AttributeOptions = attribute.AttributeOptions
+                };
+
+                db.Attributes.Add(attr);
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddQuestionForCat([FromBody] AddQuestionForCatParam param)
+        {
+            try
+            {
+                var cat = await db.Categories.FirstOrDefaultAsync(c => c.Id == param.catId);
+                var question = await db.Questions
+                    .Include(c => c.Course)
+                .FirstOrDefaultAsync(c => c.Id == param.questionId);
+
+                var unitId = 0;
+
+                if (await db.Units.AnyAsync(c => c.Title == question.Course.Name))
+                {
+                    unitId = db.Units.FirstOrDefault(c => c.Title == question.Course.Name).Id;
+                }
+                else
+                {
+                    var unit = new Unit
+                    {
+                        Title = question.Course.Name,
+                        EnTitle = "Section (Auto Create)"
+                    };
+
+                    db.Units.Add(unit);
+
+                    await db.SaveChangesAsync();
+
+                    unitId = unit.Id;
+                }
+
+                var attr = new Model.Attribute
+                {
+                    Id = 0,
+                    Title = $"{question.Name} - {cat.Title}",
+                    CategoryId = param.catId,
+                    UnitId = unitId,
+                    AttrType = AttrType.Question,
+                    IsInClient = true,
+                    IsRequired = true,
+                    Score = question.Mark,
+                    QuestionId = question.Id,
+                    IsTemplate = false
+                };
+
+                await db.Attributes.AddAsync(attr);
+                await db.SaveChangesAsync();
+
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> getAll()
         {
             try
@@ -115,6 +217,56 @@ namespace SCMR_Api.Controllers
                 .ToListAsync();
 
                 return this.DataFunction(true, sl);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> getTemps([FromBody] getTempsParams param)
+        {
+            try
+            {
+                var tempAttrs = db.Attributes.Where(c => c.IsTemplate).AsQueryable();
+
+                var count = 0;
+
+                var pageSize = 12;
+
+
+                if (!string.IsNullOrEmpty(param.searchText))
+                {
+                    tempAttrs = tempAttrs.Where(c => c.Title.Contains(param.searchText) || c.Desc.Contains(param.searchText));
+                }
+
+                count = await tempAttrs.CountAsync();
+
+                tempAttrs = tempAttrs.OrderByDescending(c => c.Id);
+
+                tempAttrs = tempAttrs.Skip((param.page - 1) * pageSize);
+                tempAttrs = tempAttrs.Take(pageSize);
+
+
+                var q = await tempAttrs
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        Title = c.Title,
+                        AttrTypeString = c.AttrTypeToString(c.AttrType),
+                        IsMeliCode = c.IsMeliCode,
+                        IsRequired = c.IsRequired,
+                        IsUniq = c.IsUniq
+                    })
+                .ToListAsync();
+
+                return Json(new jsondata
+                {
+                    success = true,
+                    data = q,
+                    type = count.ToString()
+                });
             }
             catch (System.Exception e)
             {
@@ -151,6 +303,8 @@ namespace SCMR_Api.Controllers
         {
             try
             {
+                var nowYeareducationId = await this.getActiveYeareducationId();
+
                 getparams.getparams.pageIndex += 1;
 
                 int count;
@@ -161,8 +315,21 @@ namespace SCMR_Api.Controllers
                 var cls = db.Attributes
                         .Include(c => c.Category)
                         .Include(c => c.Unit)
-                    .Where(c => c.Category.Type == (CategoryTotalType)getparams.Type)
                 .AsQueryable();
+
+                if (getparams.Type != 2)
+                {
+                    cls = cls.Where(c => c.Category.Type == (CategoryTotalType)getparams.Type);
+
+                    if ((CategoryTotalType)getparams.Type == CategoryTotalType.onlineExam)
+                    {
+                        cls = cls.Where(c => c.Category.GradeId.HasValue ? c.Category.Grade.YeareducationId == nowYeareducationId : true);
+                    }
+                }
+                else
+                {
+                    cls = cls.Where(c => c.IsTemplate == true);
+                }
 
                 if (getparams.selectedCatId != 0)
                 {
@@ -171,7 +338,6 @@ namespace SCMR_Api.Controllers
 
                 if (!string.IsNullOrWhiteSpace(query))
                 {
-
                     cls = cls.Where(c => c.Title.Contains(query) || c.Category.Title.Contains(query) ||
                                     c.Order.ToString().Contains(query) || c.Unit.Title.Contains(query) ||
                                     c.Id.ToString().Contains(query));
@@ -329,7 +495,7 @@ namespace SCMR_Api.Controllers
             {
                 var attrlist = await getAttrForCat(catId);
 
-                var attr = attrList.OrderBy(c => c.Order).ThenBy(c => c.Id)
+                var attr = attrList
                 .Select(c => new
                 {
                     Id = c.Id,
@@ -343,15 +509,20 @@ namespace SCMR_Api.Controllers
                     CategoryId = c.CategoryId,
                     AttributeOptions = c.getAttributeOptions(true, c.AttrType, c.AttributeOptions, c.Question == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
                     Score = c.Score,
-                    QuestionId = c.QuestionId,
+                    QuestionId = c.QuestionId.HasValue ? c.QuestionId.Value : 0,
                     QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
                     ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent,
                     IsInClient = c.IsInClient,
                     IsRequired = c.IsRequired,
                     IsUniq = c.IsUniq,
                     IsInShowInfo = c.IsInShowInfo,
-                    IsInSearch = c.IsInSearch
+                    IsInSearch = c.IsInSearch,
+                    Order = c.Order,
+                    questionDefact = c.Question != null ? c.Question.getDefctString(c.Question.Defact) : "",
+                    questionPerson = c.Question != null ? c.Question.Person : "",
+                    questionTypeString = c.Question != null ? c.Question.getTypeString(c.Question.Type) : "",
                 })
+                .OrderBy(c => c.Order).ThenBy(c => c.QuestionId).ThenBy(c => c.Id)
                 .ToList();
 
                 return this.DataFunction(true, attr);
@@ -568,6 +739,24 @@ namespace SCMR_Api.Controllers
             }
         }
 
+    }
+
+    public class AddQuestionForCatParam
+    {
+        public int catId { get; set; }
+        public int questionId { get; set; }
+    }
+
+    public class addAttributeTempForCatParam
+    {
+        public int attrId { get; set; }
+        public int catId { get; set; }
+    }
+
+    public class getTempsParams
+    {
+        public int page { get; set; }
+        public string searchText { get; set; }
     }
 
     public class ChangeCheckableParam

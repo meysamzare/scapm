@@ -162,6 +162,8 @@ namespace SCMR_Api.Controllers
         {
             try
             {
+                var nowYeareducationId = await this.getActiveYeareducationId();
+
                 var getparams = param.getparams;
 
                 getparams.pageIndex += 1;
@@ -172,6 +174,7 @@ namespace SCMR_Api.Controllers
                 var query = getparams.q;
 
                 var sl = db.ClassBooks
+                .Where(c => c.Grade.YeareducationId == nowYeareducationId)
                     .Include(c => c.Student)
                     .Include(c => c.Grade)
                     .Include(c => c.Class)
