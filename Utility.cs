@@ -303,6 +303,23 @@ namespace SCMR_Api
             return string.Format("{0}/{1}/{2}", pc.GetYear(date), pc.GetMonth(date).ToString("0#"), pc.GetDayOfMonth(date).ToString("0#"));
         }
 
+        public static string ToPersianDate(this DateTime? date)
+        {
+            if (date.HasValue)
+            {
+
+                if (date < new DateTime(0622, 12, 30))
+                {
+                    return "";
+                }
+
+                PersianCalendar pc = new PersianCalendar();
+                return string.Format("{0}/{1}/{2}", pc.GetYear(date.Value), pc.GetMonth(date.Value).ToString("0#"), pc.GetDayOfMonth(date.Value).ToString("0#"));
+            }
+
+            return "";
+        }
+
         public static string ToPersianDateWithDayString(this DateTime date)
         {
             if (date < new DateTime(0622, 12, 30))
@@ -312,6 +329,19 @@ namespace SCMR_Api
             var persianDateTime = new PersianDateTime(date);
             PersianCalendar pc = new PersianCalendar();
             return string.Format("{3} {0}/{1}/{2}", pc.GetYear(date), pc.GetMonth(date).ToString("0#"), pc.GetDayOfMonth(date).ToString("0#"), persianDateTime.ToString("dddd"));
+        }
+
+        public static string PersianDayString(this DateTime date)
+        {
+            if (date < new DateTime(0622, 12, 30))
+            {
+                return "";
+            }
+
+            var persianDateTime = new PersianDateTime(date);
+            PersianCalendar pc = new PersianCalendar();
+
+            return persianDateTime.ToString("dddd");
         }
 
         public static string ToPersianDateWithTime(this DateTime date)

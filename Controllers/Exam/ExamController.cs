@@ -16,6 +16,7 @@ namespace SCMR_Api.Controllers
     public class ExamController : Controller
     {
         public Data.DbContext db;
+        const string roleTitle = "Exam";
         private IHostingEnvironment hostingEnvironment;
 
         public ExamController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment)
@@ -26,6 +27,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Add, roleTitle)]
         public async Task<IActionResult> Add([FromBody] ExamAddParam examAddParam)
         {
             try
@@ -75,6 +77,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> Edit([FromBody] ExamAddParam examAddParam)
         {
             try
@@ -201,6 +204,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> Get([FromBody] getExamParam getparam)
         {
             try
@@ -387,6 +391,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getExam([FromBody] int id)
         {
             try
@@ -418,6 +423,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAll()
         {
             try
@@ -448,6 +454,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle, "OnlineExam")]
         public async Task<IActionResult> getAllWithOE()
         {
             try
@@ -497,6 +504,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAllByYGC([FromBody] getByYGC getexam)
         {
             try
@@ -576,6 +584,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle, "OnlineExam")]
         public async Task<IActionResult> getAllByClass([FromBody] int classId)
         {
             try
@@ -603,7 +612,7 @@ namespace SCMR_Api.Controllers
 
                 var onlineExams = db.Categories
                     .Where(c => c.Type == CategoryTotalType.onlineExam && c.ClassId.HasValue ? c.ClassId.Value == classId : false);
-                
+
                 ex.AddRange(onlineExams.Select(c => new
                 {
                     Id = $"OE{c.Id}",
@@ -648,6 +657,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, "ExamAnalize")]
         public async Task<IActionResult> getExamAnalizeData([FromBody] string examId)
         {
             try
@@ -703,7 +713,7 @@ namespace SCMR_Api.Controllers
                             Id = $"IT{item.Id}",
                             ExamId = $"OE{c.Id}",
                             StudentId = students.FirstOrDefault(std => item.ItemAttribute.Where(v => v.Attribute.IsMeliCode).Select(p => p.AttrubuteValue.Trim().PersianToEnglishDigit()).Contains(std.IdNumber2.Trim().PersianToEnglishDigit())) != null ? students.FirstOrDefault(std => item.ItemAttribute.Where(v => v.Attribute.IsMeliCode).Select(p => p.AttrubuteValue.Trim().PersianToEnglishDigit()).Contains(std.IdNumber2.Trim().PersianToEnglishDigit())).Id : 0,
-                            Score = item.getTotalScoreFunction(item.ItemAttribute),
+                            Score = item.getTotalScoreFunction(item.ItemAttribute, item.Category.CalculateNegativeScore),
                             TopScore = c.getTotalScore(c.Attributes.ToList())
                         }).ToList(),
                         students = students.Where(l => c.Items.SelectMany(f => f.ItemAttribute).Where(v => v.Attribute.IsMeliCode).Select(p => p.AttrubuteValue.Trim().PersianToEnglishDigit()).Contains(l.IdNumber2.Trim().PersianToEnglishDigit())).ToList(),
@@ -773,6 +783,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Remove, roleTitle)]
         public async Task<IActionResult> Delete([FromBody] int[] ids)
         {
             try

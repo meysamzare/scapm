@@ -254,5 +254,12 @@ namespace SCMR_Api.Data
 
         public DbSet<WorkBookHeader> WorkBookHeaders { get; set; }
         public DbSet<WorkBookDetail> WorkBookDetails { get; set; }
+
+
+
+        public DbSet<OnlineClass> OnlineClasses { get; set; }
+
+
+        public DbSet<StudentDailySchedule> StudentDailySchedules { get; set; }
     }
 }

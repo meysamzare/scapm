@@ -16,12 +16,15 @@ namespace SCMR_Api.Controllers
     {
         public Data.DbContext db;
 
+        const string roleTitle = "Attribute";
+
         public AttributeController(Data.DbContext _db)
         {
             db = _db;
         }
 
         [HttpPost]
+        [Role(RolePrefix.Add, roleTitle)]
         public async Task<IActionResult> Add([FromBody] AddAttrParam param)
         {
             try
@@ -42,6 +45,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> Edit([FromBody] AddAttrParam addAttrParam)
         {
             try
@@ -59,6 +63,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> ChangeCheckable([FromBody] ChangeCheckableParam param)
         {
             try
@@ -102,6 +107,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Add, roleTitle)]
         public async Task<IActionResult> AddAttributeTempForCat([FromBody] addAttributeTempForCatParam param)
         {
             try
@@ -147,6 +153,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Add, roleTitle)]
         public async Task<IActionResult> AddQuestionForCat([FromBody] AddQuestionForCatParam param)
         {
             try
@@ -204,6 +211,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAll()
         {
             try
@@ -225,6 +233,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getTemps([FromBody] getTempsParams param)
         {
             try
@@ -275,6 +284,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAllByCatType([FromBody] int type)
         {
             try
@@ -299,6 +309,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> Get([FromBody] getparamsAttr getparams)
         {
             try
@@ -399,7 +410,16 @@ namespace SCMR_Api.Controllers
                 cls = cls.Skip((getparams.getparams.pageIndex - 1) * getparams.getparams.pageSize);
                 cls = cls.Take(getparams.getparams.pageSize);
 
-                var q = await cls.ToListAsync();
+                var q = await cls
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        Title = c.Title,
+                        catTitle = c.Category.Title,
+                        attrTypeString = c.AttrTypeToString(c.AttrType),
+                        unitTitle = c.Unit.Title
+                    })
+                .ToListAsync();
 
                 return Json(new jsondata
                 {
@@ -416,6 +436,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAttribute([FromBody] int id)
         {
             try
@@ -446,6 +467,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Remove, roleTitle)]
         public async Task<IActionResult> Delete([FromBody] int[] ids)
         {
             try
@@ -489,6 +511,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAttrsForCat([FromBody] int catId)
         {
             try
@@ -534,6 +557,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getNonClientAttrsForCat([FromBody] int catId)
         {
             try
@@ -644,6 +668,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Add, roleTitle)]
         public async Task<IActionResult> AddAttributeOption([FromBody] AttributeOption option)
         {
             try
@@ -661,6 +686,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Remove, roleTitle)]
         public async Task<IActionResult> RemoveAttributeOption([FromBody] AttributeOption option)
         {
             try
@@ -680,6 +706,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> EditAttributeOption([FromBody] AttributeOption option)
         {
             try
@@ -699,6 +726,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAttributeOptions([FromBody] int attrId)
         {
             try
@@ -714,6 +742,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> setTrueOption([FromBody] AttributeOption option)
         {
             try

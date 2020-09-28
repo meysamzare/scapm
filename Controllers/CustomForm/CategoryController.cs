@@ -17,6 +17,7 @@ namespace SCMR_Api.Controllers
     public class CategoryController : Controller
     {
         public Data.DbContext db;
+        const string roleTitle = "Category";
 
         private IHostingEnvironment hostingEnvironment;
 
@@ -37,6 +38,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Add, roleTitle)]
         public async Task<IActionResult> Add([FromBody] AddCategoryParam category)
         {
             try
@@ -115,6 +117,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> Edit([FromBody] AddCategoryParam addCategory)
         {
             try
@@ -297,7 +300,7 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var catList = await db.Categories.ToListAsync();
+                var catList = await db.Categories.Where(c => !c.IsArchived).ToListAsync();
 
                 return this.SuccessFunction(data: catList);
             }
@@ -308,12 +311,13 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> GetAllPined()
         {
             try
             {
                 var catList = await db.Categories
-                    .Where(c => c.IsPined)
+                    .Where(c => c.IsPined && !c.IsArchived)
                 .ToListAsync();
 
                 return this.SuccessFunction(data: catList);
@@ -325,12 +329,13 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> GetAllPinedByType([FromBody] int type)
         {
             try
             {
                 var catList = await db.Categories
-                    .Where(c => c.IsPined && c.Type == (CategoryTotalType)type)
+                    .Where(c => c.IsPined && c.Type == (CategoryTotalType)type && !c.IsArchived)
                 .ToListAsync();
 
                 return this.SuccessFunction(data: catList);
@@ -342,13 +347,31 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAllByTeacher([FromBody] getAllByTeacherParam param)
         {
             try
             {
-                var cats = await db.Categories.Where(c => c.TeachersIdAccess == null ? false : c.TeachersIdAccess.Contains(param.teacherId) && c.Type == (CategoryTotalType)param.type).ToListAsync();
+                var catList = new List<Category>();
 
-                return this.DataFunction(true, cats);
+                if ((CategoryTotalType)param.type == CategoryTotalType.registerForm)
+                {
+                    catList = await db.Categories
+                        .Where(c => c.TeachersIdAccess == null ? false : c.TeachersIdAccess.Contains(param.teacherId) && c.Type == (CategoryTotalType)param.type)
+                    .ToListAsync();
+                }
+                else
+                {
+                    var teacherCourseIds = db.Teachers.FirstOrDefault(c => c.Id == param.teacherId).Courses.Select(c => c.Id);
+
+                    catList = await db.Categories
+                        .Where(c => c.Type == (CategoryTotalType)param.type)
+                        .Where(c => teacherCourseIds.Contains(c.CourseId.HasValue ? c.CourseId.Value : 0))
+                    .ToListAsync();
+                }
+
+
+                return this.DataFunction(true, catList);
             }
             catch (System.Exception e)
             {
@@ -357,6 +380,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> togglePin([FromBody] int id)
         {
             try
@@ -376,6 +400,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> ChangeCheckableProperty([FromBody] ChangeCheckablePropertyParam param)
         {
             try
@@ -397,6 +422,11 @@ namespace SCMR_Api.Controllers
                     cat.IsInfoShow = param.check;
                 }
 
+                if (param.type == "isArchived")
+                {
+                    cat.IsArchived = param.check;
+                }
+
                 await db.SaveChangesAsync();
 
                 return this.SuccessFunction();
@@ -408,6 +438,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> AddRandomQuestionAttribute([FromBody] AddRandomQuestionAttributeParam param)
         {
             try
@@ -516,11 +547,12 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAllByType([FromBody] int type)
         {
             try
             {
-                var cat = await db.Categories.Where(c => c.Type == (CategoryTotalType)type).ToListAsync();
+                var cat = await db.Categories.Where(c => c.Type == (CategoryTotalType)type && !c.IsArchived).ToListAsync();
 
                 return this.DataFunction(true, cat);
             }
@@ -537,7 +569,7 @@ namespace SCMR_Api.Controllers
             try
             {
                 var catList = await db.Categories
-                    .Where(c => c.Type == CategoryTotalType.registerForm)
+                    .Where(c => c.Type == CategoryTotalType.registerForm && !c.IsArchived)
                     .Where(c => DateTime.Now >= c.DatePublish && DateTime.Now <= c.DateExpire && c.IsActive == true && c.PostType == 0)
                 .ToListAsync();
 
@@ -556,8 +588,16 @@ namespace SCMR_Api.Controllers
             try
             {
                 var cats = await db.Categories
-                    .Where(c => c.Type == CategoryTotalType.registerForm)
+                    .Where(c => c.Type == CategoryTotalType.registerForm && !c.IsArchived)
                     .Where(c => DateTime.Now >= c.DatePublish && DateTime.Now <= c.DateExpire && c.IsActive == true && c.PostType == type)
+                .Select(c => new
+                {
+                    Id = c.Id,
+                    Title = c.Title,
+                    isInfoShow = c.IsInfoShow,
+                    registerPicUrl = string.IsNullOrEmpty(c.RegisterPicUrl) ? c.HeaderPicUrl : c.RegisterPicUrl,
+                    showInfoPicUrl = string.IsNullOrEmpty(c.ShowInfoPicUrl) ? c.HeaderPicUrl : c.ShowInfoPicUrl,
+                })
                 .ToListAsync();
 
                 return this.SuccessFunction(data: cats);
@@ -570,6 +610,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> Get([FromBody] getCategoryParam param)
         {
             try
@@ -587,6 +628,18 @@ namespace SCMR_Api.Controllers
                         .Include(c => c.Children)
                     .Where(c => c.Type == (CategoryTotalType)param.type)
                 .AsQueryable();
+
+                if (param.archiveType.HasValue && param.archiveType.Value != 3)
+                {
+                    if (param.archiveType.Value == 1)
+                    {
+                        cls = cls.Where(c => !c.IsArchived);
+                    }
+                    if (param.archiveType.Value == 2)
+                    {
+                        cls = cls.Where(c => c.IsArchived);
+                    }
+                }
 
                 if ((CategoryTotalType)param.type == CategoryTotalType.onlineExam)
                 {
@@ -675,7 +728,8 @@ namespace SCMR_Api.Controllers
                         timePublish = c.DatePublish.Value.ToShortTimeString(),
                         dateExpireString = c.DateExpire.Value.ToPersianDate(),
                         timeExpire = c.DateExpire.Value.ToShortTimeString(),
-                        headerPicUrl = string.IsNullOrEmpty(c.HeaderPicUrl) ? c.RegisterPicUrl : c.HeaderPicUrl
+                        headerPicUrl = string.IsNullOrEmpty(c.HeaderPicUrl) ? c.RegisterPicUrl : c.HeaderPicUrl,
+                        isArchived = c.IsArchived
                     })
                 .ToListAsync();
 
@@ -722,6 +776,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getQuestionIds([FromBody] int catId)
         {
             try
@@ -747,7 +802,7 @@ namespace SCMR_Api.Controllers
             try
             {
                 var catList = await db.Categories
-                    .Where(c => c.Type == CategoryTotalType.onlineExam)
+                    .Where(c => c.Type == CategoryTotalType.onlineExam && !c.IsArchived)
                     .Where(c => DateTime.Now >= c.DatePublish && DateTime.Now <= c.DateExpire && c.IsActive == true)
                 .ToListAsync();
 
@@ -760,6 +815,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getSearchedAttrs([FromBody] int catId)
         {
             try
@@ -775,6 +831,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Remove, roleTitle)]
         public async Task<IActionResult> Delete([FromBody] int[] ids)
         {
             try
@@ -784,7 +841,14 @@ namespace SCMR_Api.Controllers
                     if (id != 0)
                     {
 
-                        var cat = await db.Categories.Include(c => c.Children).Include(c => c.Attributes).SingleAsync(c => c.Id == id);
+                        var cat = await db.Categories
+                            .Include(c => c.Children)
+                            .Include(c => c.Attributes)
+                            .Include(c => c.Items)
+                                .ThenInclude(c => c.ItemAttribute)
+                        .SingleAsync(c => c.Id == id);
+
+
                         if (cat == null)
                         {
                             return this.UnSuccessFunction("Data Not Found", "error");
@@ -793,9 +857,19 @@ namespace SCMR_Api.Controllers
                         {
                             return this.UnSuccessFunction("این فرم دارای زیرمجموعه می باشد نمیتوان آن را حذف کرد", "warning");
                         }
-                        if (cat.Attributes.Any())
+                        if (cat.Attributes.Any() && !cat.IsArchived)
                         {
                             return this.UnSuccessFunction("این فرم دارای فیلد هایی می باشد نمیتوان آن را حذف کرد", "warning");
+                        }
+
+                        if (cat.Attributes.Any())
+                        {
+                            db.RemoveRange(cat.Attributes);
+                        }
+                        if (cat.Items.Any())
+                        {
+                            db.RemoveRange(cat.Items.SelectMany(c => c.ItemAttribute));
+                            db.RemoveRange(cat.Items);
                         }
 
 
@@ -908,6 +982,9 @@ namespace SCMR_Api.Controllers
         public int? selectedGradeId { get; set; }
         public int? selectedCourseId { get; set; }
         public int? selectedExamTypeId { get; set; }
+
+        // 1: noArchive, 2: onlyArchived, 3: All
+        public int? archiveType { get; set; }
     }
 
     public class AddCategoryParam
@@ -994,9 +1071,8 @@ namespace SCMR_Api.Controllers
         public int? workbookId { get; set; }
 
         public bool showScoreAfterDone { get; set; }
-        
-        public bool calculateNegativeScore { get; set; }
 
+        public bool calculateNegativeScore { get; set; }
     }
 
     public class JsTreeModel

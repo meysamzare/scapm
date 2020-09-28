@@ -360,8 +360,11 @@ namespace SCMR_Api.Controllers
             {
                 var pageSize = 10;
 
+                var student = await db.Students.Include(c => c.StdClassMngs).FirstOrDefaultAsync(c => c.Id == param.studentId);
+                var yeareducationId = student.StdClassMngs.First(c => c.IsActive).YeareducationId;
+
                 var classBooks = db.ClassBooks
-                    .Where(c => c.StudentId == param.studentId)
+                    .Where(c => c.StudentId == param.studentId && c.YeareducationId == yeareducationId)
                 .AsQueryable();
 
                 if (!param.access)

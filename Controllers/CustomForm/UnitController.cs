@@ -15,6 +15,7 @@ namespace SCMR_Api.Controllers
     public class UnitController : Controller
     {
         public Data.DbContext db;
+        const string roleTitle = "Unit";
 
         public UnitController(Data.DbContext _db)
         {
@@ -23,6 +24,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Add, roleTitle)]
         public async Task<IActionResult> Add([FromBody] Unit unit)
         {
             try
@@ -41,6 +43,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle)]
         public async Task<IActionResult> Edit([FromBody]  Unit unit)
         {
             try
@@ -79,6 +82,7 @@ namespace SCMR_Api.Controllers
         
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> Get([FromBody] getparams getparams)
         {
             try
@@ -162,6 +166,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getUnit([FromBody] int id)
         {
             try
@@ -192,6 +197,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Remove, roleTitle)]
         public async Task<IActionResult> Delete([FromBody] int[] ids)
         {
             try

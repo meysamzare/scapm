@@ -323,6 +323,24 @@ namespace SCMR_Api.Model
             return "";
         }
 
+        
+        public bool haveTrue(Attribute attr)
+        {
+            if (attr.AttrType == AttrType.combobox ||
+                attr.AttrType == AttrType.radiobutton ||
+                (attr.AttrType == AttrType.Question && attr.Question != null && attr.Question.Type == QueType.Test))
+            {
+                var attrOptions = attr.getAttributeOptions(true, attr.AttrType, attr.AttributeOptions, attr.Question == null || attr.Question.QuestionOptions == null ? new List<QuestionOption>() : attr.Question.QuestionOptions.ToList());
+
+                if (attrOptions.Any() && attrOptions.Any(c => c.IsTrue))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         #endregion
     }
 

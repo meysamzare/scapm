@@ -27,6 +27,10 @@ namespace SCMR_Api.Controllers
     public class ItemController : Controller
     {
         public Data.DbContext db;
+
+        const string roleTitle = "Item";
+        const string onlineExamRoleTitle = "OnlineExamResult";
+
         private IHostingEnvironment hostingEnvironment;
 
         private IConfiguration _config;
@@ -40,6 +44,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Add, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> Add([FromBody] Item item)
         {
             try
@@ -64,6 +69,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> Edit([FromBody] EditItemParams item)
         {
             try
@@ -98,6 +104,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> Get([FromBody] getParamComplex getparamsComplex)
         {
             try
@@ -114,6 +121,7 @@ namespace SCMR_Api.Controllers
                 var items = db.Items
                         .Include(c => c.Category)
                     .Where(c => c.Category.Type == (CategoryTotalType)getparamsComplex.Type)
+                    .Where(c => !c.Category.IsArchived)
                 .AsQueryable();
 
                 if ((CategoryTotalType)getparamsComplex.Type == CategoryTotalType.onlineExam)
@@ -366,6 +374,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAll()
         {
             try
@@ -384,6 +393,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> getItem([FromBody] int id)
         {
             try
@@ -482,6 +492,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Remove, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> Delete([FromBody] int[] ids)
         {
             try
@@ -537,6 +548,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> getItemAttr([FromBody] int itemid)
         {
             try
@@ -552,6 +564,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> SetItemAttributeScore([FromBody] SetItemAttributeScoreParam param)
         {
             try
@@ -571,6 +584,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> setTagsGroup([FromBody] setTagsGroupParam settags)
         {
             try
@@ -595,6 +609,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> setItemAttr([FromBody] SetItemAttrParams attrParams)
         {
             try
@@ -661,6 +676,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> setItemAttrGroup([FromBody] SetItemAttrGroupParams attrParams)
         {
             try
@@ -734,6 +750,7 @@ namespace SCMR_Api.Controllers
         [HttpPost]
         [DisableRequestSizeLimit]
         [RequestFormLimits(ValueLengthLimit = int.MaxValue, MultipartBodyLengthLimit = long.MaxValue)]
+        [Role(RolePrefix.Edit, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> setItemAttrForFiles()
         {
             try
@@ -825,6 +842,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Remove, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> removeItemAttrFile([FromBody] removeItemAttrFileParam param)
         {
             try
@@ -846,6 +864,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> setItemAttrForFilesGroup([FromBody] ItemAttrForFileGroupParams itemAttrForFileParams)
         {
             try
@@ -1208,6 +1227,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> getItemsToExel([FromBody] int catId)
         {
             try
@@ -1291,7 +1311,7 @@ namespace SCMR_Api.Controllers
                         if (cat.CalculateNegativeScore)
                         {
                             worksheet.Cells[1, 12].Value = "درصد نمره";
-                            worksheet.Cells[1, 13].Value = "نمره با احتساب نمره منفی";
+                            worksheet.Cells[1, 13].Value = "نمره از 20";
 
                             staticColsCount = 13;
                         }
@@ -1434,7 +1454,7 @@ namespace SCMR_Api.Controllers
                                 var scorePrecent = (double)((trueCount * 3) - (falseCount)) / ((trueCount + falseCount + blankCount) * 3);
 
                                 worksheet.Cells[1 + (index + 1), 12].Value = Math.Round(scorePrecent * 100, 2);
-                                worksheet.Cells[1 + (index + 1), 13].Value = Math.Round(scorePrecent * cat.getTotalScore(cat.Attributes.ToList()), 2);
+                                worksheet.Cells[1 + (index + 1), 13].Value = Math.Round((scorePrecent * 100) / 5, 2);
                             }
                         }
                     }
@@ -1498,6 +1518,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.View, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> getExcelFileOfList([FromBody] getExcelParamComplex getparamsComplex)
         {
             try
@@ -1814,6 +1835,7 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> ChangeActiveState([FromBody] ActiveStateParam activestateparam)
         {
             try
@@ -1833,6 +1855,7 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        [Role(RolePrefix.Edit, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> ChangeActiveStateGroup([FromBody] ActiveStateGroupParam activestateparam)
         {
             try

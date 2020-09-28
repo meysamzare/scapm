@@ -71,14 +71,29 @@ namespace SCMR_Api.Model
             }
         }
 
-        public double getTotalScoreFunction(IList<ItemAttribute> itemAttrs)
+        public double getTotalScoreFunction(IList<ItemAttribute> itemAttrs, bool calculateNegativeScore = false)
         {
             if (itemAttrs == null)
             {
                 return 0.0;
             }
 
-            return itemAttrs.ToList().Sum(c => double.Parse(c.scoreString));
+            var score = itemAttrs.ToList().Sum(c => double.Parse(c.scoreString));
+
+            if (calculateNegativeScore)
+            {
+                var trueCount = itemAttrs.Where(c => c.getPaperState(c, c.Attribute) == ItemAttributePaperState.True).Count();
+                var falseCount = itemAttrs.Where(c => c.getPaperState(c, c.Attribute) == ItemAttributePaperState.False).Count();
+                var blankCount = itemAttrs.Where(c => c.getPaperState(c, c.Attribute) == ItemAttributePaperState.Blank).Count();
+
+
+                var scorePrecent = (double)((trueCount * 3) - (falseCount)) / ((trueCount + falseCount + blankCount) * 3);
+
+                score = Math.Round((scorePrecent * 100) / 5, 2);
+            }
+
+
+            return score;
         }
 
         public string UnitString => Unit == null ? "" : Unit.Title;

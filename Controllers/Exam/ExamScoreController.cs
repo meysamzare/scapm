@@ -489,9 +489,9 @@ namespace SCMR_Api.Controllers
                     })
                 .ToListAsync();
 
-                var cats = db.Categories.Where(c => c.Type == CategoryTotalType.onlineExam && c.GradeId.HasValue ? c.GradeId.Value == param.gradeId : false
-                                && c.WorkbookId.HasValue ? c.WorkbookId.Value == param.workbookId : false && c.Attributes.Any(l => l.IsMeliCode))
-                                    .Include(c => c.Items);
+                var cats = db.Categories.Where(c => c.Type == CategoryTotalType.onlineExam && c.GradeId.HasValue ? c.GradeId.Value == param.gradeId : false && c.Attributes.Any(l => l.IsMeliCode))
+                                    .Where(c => c.WorkbookId == param.workbookId)
+                                        .Include(c => c.Items);
 
                 var items = cats.SelectMany(c => c.Items)
                     .Include(m => m.ItemAttribute)
@@ -533,14 +533,14 @@ namespace SCMR_Api.Controllers
                     {
                         Id = $"OE{l.Id}",
                         CourseId = l.CourseId.HasValue ? l.CourseId.Value : 0,
-                        TopScore = l.getTotalScore(l.Attributes.ToList())
+                        TopScore = l.CalculateNegativeScore ? 20 : l.getTotalScore(l.Attributes.ToList())
                     }).ToList();
 
                     stdTemp.onlineExamScores = items.Where(v => v.ItemAttribute.Where(f => f.Attribute.IsMeliCode).Select(g => g.AttrubuteValue.Trim()).Contains(c.IdNumber2.Trim()))
                     .Select(l => new ExamScoreCourseRatingParam
                     {
                         ExamId = $"OE{l.Category.Id}",
-                        Score = l.getTotalScoreFunction(l.ItemAttribute)
+                        Score = l.getTotalScoreFunction(l.ItemAttribute, l.Category.CalculateNegativeScore)
                     }).ToList();
 
 
@@ -602,7 +602,7 @@ namespace SCMR_Api.Controllers
                         if (count != 0)
                         {
                             var avg = sumScore / count;
-                            avgForCourses.Add(avg);
+                            avgForCourses.Add(Math.Round(avg, 2));
 
                             courseScores.Add(new CourseScoreType
                             {
@@ -702,8 +702,8 @@ namespace SCMR_Api.Controllers
                             .Distinct()
                 .ToListAsync();
 
-                var cats = db.Categories.Where(c => c.Type == CategoryTotalType.onlineExam && c.GradeId.HasValue ? c.GradeId.Value == param.gradeId : false
-                                && c.WorkbookId.HasValue ? c.WorkbookId.Value == param.workbookId : false && c.Attributes.Any(l => l.IsMeliCode))
+                var cats = db.Categories.Where(c => c.Type == CategoryTotalType.onlineExam && c.GradeId.HasValue ? c.GradeId.Value == param.gradeId : false && c.Attributes.Any(l => l.IsMeliCode))
+                                .Where(c => c.WorkbookId == param.workbookId)
                                     .Include(c => c.Items);
 
                 var items = cats.SelectMany(c => c.Items)
@@ -732,8 +732,8 @@ namespace SCMR_Api.Controllers
                     .Where(v => v.ItemAttribute.Where(f => f.Attribute.IsMeliCode).Select(g => g.AttrubuteValue.Trim()).Contains(studen.IdNumber2.Trim()))
                             .Select(l => new ExamScoreForCourseAvg
                             {
-                                Score = l.getTotalScoreFunction(l.ItemAttribute),
-                                TopScore = l.Category.getTotalScore(l.Category.Attributes.ToList()),
+                                Score = l.getTotalScoreFunction(l.ItemAttribute, l.Category.CalculateNegativeScore),
+                                TopScore = l.Category.CalculateNegativeScore ? 20 : l.Category.getTotalScore(l.Category.Attributes.ToList()),
                                 CourseId = l.Category.CourseId.HasValue ? l.Category.CourseId.Value : 0
                             }).ToList();
 
@@ -1125,7 +1125,7 @@ namespace SCMR_Api.Controllers
 
     public class getScoreDetailByWorkbookParam
     {
-        public int workbookId { get; set; }
+        public int? workbookId { get; set; }
 
         public int gradeId { get; set; }
 
@@ -1177,7 +1177,7 @@ namespace SCMR_Api.Controllers
         public int gradeId { get; set; }
         public int classId { get; set; }
 
-        public int workbookId { get; set; }
+        public int? workbookId { get; set; }
     }
 
     public class getExamScoreByGrade_Student

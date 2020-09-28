@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -6,33 +7,31 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SCMR_Api.Model.Index;
+using SCMR_Api.Model;
 
 namespace SCMR_Api.Controllers
 {
     [Route("[controller]/[action]")]
-    [Authorize]
     [ApiController]
-    public class PictureGalleryController : Controller
+    [Authorize]
+    public class OnlineClassController : Controller
     {
         public Data.DbContext db;
-
         private IHostingEnvironment hostingEnvironment;
 
-        public PictureGalleryController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment)
+        public OnlineClassController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment)
         {
             db = _db;
             hostingEnvironment = _hostingEnvironment;
         }
 
+
         [HttpPost]
-        public async Task<IActionResult> Add([FromBody] PictureGallery picgallery)
+        public async Task<IActionResult> Add([FromBody] OnlineClass onlineClass)
         {
             try
             {
-                picgallery.CreateDate = DateTime.Now;
-
-                await db.PictureGalleries.AddAsync(picgallery);
+                db.OnlineClasses.Add(onlineClass);
 
                 await db.SaveChangesAsync();
 
@@ -45,11 +44,11 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit([FromBody] PictureGallery picgallery)
+        public async Task<IActionResult> Edit([FromBody] OnlineClass onlineClass)
         {
             try
             {
-                db.Update(picgallery);
+                db.OnlineClasses.Update(onlineClass);
 
                 await db.SaveChangesAsync();
 
@@ -60,6 +59,7 @@ namespace SCMR_Api.Controllers
                 return this.CatchFunction(e);
             }
         }
+
 
         [HttpPost]
         public async Task<IActionResult> Get([FromBody] getparams getparams)
@@ -73,12 +73,15 @@ namespace SCMR_Api.Controllers
 
                 var query = getparams.q;
 
-                var sl = db.PictureGalleries.AsQueryable();
+                var sl = db.OnlineClasses
+                    .Include(c => c.Grade)
+                    .Include(c => c.Class)
+                .AsQueryable();
 
 
                 if (!string.IsNullOrWhiteSpace(query))
                 {
-                    sl = sl.Where(c => c.Name.Contains(query) || c.Desc.Contains(query) || c.Author.Contains(query));
+                    sl = sl.Where(c => c.name.Contains(query) || c.className.Contains(query) || c.gradeName.Contains(query));
                 }
 
                 count = sl.Count();
@@ -92,11 +95,11 @@ namespace SCMR_Api.Controllers
                     }
                     if (getparams.sort.Equals("name"))
                     {
-                        sl = sl.OrderBy(c => c.Name);
+                        sl = sl.OrderBy(c => c.name);
                     }
-                    if (getparams.sort.Equals("date"))
+                    if (getparams.sort.Equals("grade"))
                     {
-                        sl = sl.OrderBy(c => c.CreateDate);
+                        sl = sl.OrderBy(c => c.Grade.Name).ThenBy(c => c.Class.Name);
                     }
                 }
                 else if (getparams.direction.Equals("desc"))
@@ -107,16 +110,16 @@ namespace SCMR_Api.Controllers
                     }
                     if (getparams.sort.Equals("name"))
                     {
-                        sl = sl.OrderByDescending(c => c.Name);
+                        sl = sl.OrderByDescending(c => c.name);
                     }
-                    if (getparams.sort.Equals("date"))
+                    if (getparams.sort.Equals("grade"))
                     {
-                        sl = sl.OrderByDescending(c => c.CreateDate);
+                        sl = sl.OrderByDescending(c => c.Grade.Name).ThenByDescending(c => c.Class.Name);
                     }
                 }
                 else
                 {
-                    sl = sl.OrderBy(c => c.Id);
+                    sl = sl.OrderByDescending(c => c.Id);
                 }
 
                 sl = sl.Skip((getparams.pageIndex - 1) * getparams.pageSize);
@@ -125,9 +128,10 @@ namespace SCMR_Api.Controllers
                 var q = await sl
                     .Select(c => new
                     {
-                        Id = c.Id,
-                        Name = c.Name,
-                        createDateString = c.CreateDate.ToPersianDate()
+                        id = c.Id,
+                        name = c.name,
+                        gradeName = c.Grade.Name,
+                        className = c.Class.Name
                     })
                 .ToListAsync();
 
@@ -144,44 +148,6 @@ namespace SCMR_Api.Controllers
             }
         }
 
-        [HttpPost]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetIndex([FromBody] int page)
-        {
-            try
-            {
-                // int pageSize = 10;
-
-                var galleries = db.PictureGalleries
-                    .Select(c => new
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        firstPicUrl = c.Pictures.Any() ? c.Pictures.FirstOrDefault().PicUrl : "",
-                        haveAnyPic = c.Pictures.Any()
-                    })
-                .Where(c => c.haveAnyPic).OrderByDescending(c => c.Id);
-
-                // var count = await galleries.CountAsync();
-                var count = 5;
-
-
-                var gallery = await galleries
-                // .Skip((page - 1) * pageSize).Take(pageSize)
-                .ToListAsync();
-
-                return this.DataFunction(true, new
-                {
-                    gallery = gallery,
-                    count = count
-                });
-            }
-            catch (System.Exception e)
-            {
-                return this.CatchFunction(e);
-            }
-        }
-
 
         [HttpPost]
         public async Task<IActionResult> getAll()
@@ -189,7 +155,7 @@ namespace SCMR_Api.Controllers
             try
             {
 
-                var sl = await db.PictureGalleries.Select(c => new { id = c.Id, name = c.Name }).ToListAsync();
+                var sl = await db.OnlineClasses.Select(c => new { id = c.Id, name = c.name }).ToListAsync();
 
                 return this.DataFunction(true, sl);
             }
@@ -200,15 +166,47 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        [AllowAnonymous]
-        public async Task<IActionResult> getPictureGallery([FromBody] int id)
+        public async Task<IActionResult> getAllByGrade_Class_Course([FromBody] getAllByGrade_Class_Course param)
+        {
+            try
+            {
+                var onlineClasses = db.OnlineClasses.AsQueryable();
+
+                
+                if (param.gradeId.HasValue)
+                {
+                    onlineClasses = onlineClasses.Where(c => c.GradeId == param.gradeId.Value);
+                }
+
+                if (param.classId.HasValue)
+                {
+                    onlineClasses = onlineClasses.Where(c => c.ClassId.HasValue ? c.ClassId.Value == param.classId.Value : false);
+                }
+
+                if (param.courseId.HasValue)
+                {
+                    onlineClasses = onlineClasses.Where(c => c.CourseId == param.courseId.Value);
+                }
+
+                return this.DataFunction(true, await onlineClasses.ToListAsync());
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+
+
+        [HttpPost]
+        public async Task<IActionResult> getOnlineClass([FromBody] int id)
         {
             try
             {
 
                 if (id != 0)
                 {
-                    var sl = await db.PictureGalleries.FirstOrDefaultAsync(c => c.Id == id);
+                    var sl = await db.OnlineClasses.FirstOrDefaultAsync(c => c.Id == id);
 
                     return this.DataFunction(true, sl);
                 }
@@ -223,6 +221,7 @@ namespace SCMR_Api.Controllers
             }
         }
 
+
         [HttpPost]
         public async Task<IActionResult> Delete([FromBody] int[] ids)
         {
@@ -233,26 +232,15 @@ namespace SCMR_Api.Controllers
                     if (id != 0)
                     {
 
-                        var sl = await db.PictureGalleries.FirstOrDefaultAsync(c => c.Id == id);
+                        var sl = await db.OnlineClasses
+                        .FirstOrDefaultAsync(c => c.Id == id);
 
                         if (sl == null)
                         {
                             return this.UnSuccessFunction("Data Not Found", "error");
                         }
 
-                        foreach (var pic in sl.Pictures)
-                        {
-                            var picurl = pic.PicUrl;
-
-                            if (!string.IsNullOrEmpty(picurl))
-                            {
-                                System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
-                            }
-                        }
-
-                        db.RemoveRange(sl.Pictures);
-
-                        db.PictureGalleries.Remove(sl);
+                        db.OnlineClasses.Remove(sl);
                     }
                     else
                     {
@@ -273,5 +261,12 @@ namespace SCMR_Api.Controllers
         }
 
 
+    }
+
+    public class getAllByGrade_Class_Course
+    {
+        public int? gradeId { get; set; }
+        public int? classId { get; set; }
+        public int? courseId { get; set; }
     }
 }

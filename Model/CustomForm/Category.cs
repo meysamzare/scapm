@@ -88,6 +88,9 @@ namespace SCMR_Api.Model
         public bool CalculateNegativeScore { get; set; }
 
 
+        public bool IsArchived { get; set; }
+
+
 
         #region Relations
 

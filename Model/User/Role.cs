@@ -347,6 +347,15 @@ namespace SCMR_Api.Model
         public bool View_OnlineExamResult { get; set; }
 
 
+        public bool Add_OnlineClass { get; set; }
+        public bool Edit_OnlineClass { get; set; }
+        public bool Remove_OnlineClass { get; set; }
+        public bool View_OnlineClass { get; set; }
+
+
+        public bool View_StudentDailySchedule { get; set; }
+
+
         public bool View_Log { get; set; }
 
 

@@ -132,7 +132,7 @@ namespace SCMR_Api.Controllers
             try
             {
                 var stds = await db.StdClassMngs
-                .Where(c => c.StudentId == StudentId)
+                    .Where(c => c.StudentId == StudentId)
                 .Select(c => new
                 {
                     Id = c.Id,
@@ -159,6 +159,34 @@ namespace SCMR_Api.Controllers
                 .ToListAsync();
 
                 return this.SuccessFunction(data: stds);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> getAllRegisteredByStudent([FromBody] int studentId)
+        {
+            try
+            {
+                var stdClassMngs = await db.StdClassMngs
+                    .Where(c => c.StudentId == studentId)
+                .Select(c => new
+                {
+                    Id = c.Id,
+                    gradeName = c.Grade.Name,
+                    yeareducationName = c.Yeareducation.Name,
+                    className = c.Class.Name,
+                    StudentId = c.StudentId,
+                    ClassId = c.ClassId,
+                    GradeId = c.GradeId,
+                    YeareducationId = c.YeareducationId
+                })
+                .ToListAsync();
+
+                return this.DataFunction(true, stdClassMngs);
             }
             catch (System.Exception e)
             {
@@ -240,7 +268,7 @@ namespace SCMR_Api.Controllers
             {
                 var stdClassMng = await db.StdClassMngs.SingleAsync(c => c.Id == changestateparam.id);
 
-                
+
                 var nowYeareducationId = await this.getActiveYeareducationId();
                 if (stdClassMng.YeareducationId != nowYeareducationId)
                 {
@@ -337,7 +365,7 @@ namespace SCMR_Api.Controllers
 
                 var stdClassMng = await db.StdClassMngs.FirstOrDefaultAsync(c => c.Id == activeStdClassMng.StdClassMngId);
 
-                
+
                 var nowYeareducationId = await this.getActiveYeareducationId();
                 if (stdClassMng.YeareducationId != nowYeareducationId)
                 {

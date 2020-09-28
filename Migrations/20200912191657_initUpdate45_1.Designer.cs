@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20200912191657_initUpdate45_1")]
+    partial class initUpdate45_1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2007,8 +2009,6 @@ namespace SCMR_Api.Migrations
 
                     b.Property<bool>("View_Student");
 
-                    b.Property<bool>("View_StudentDailySchedule");
-
                     b.Property<bool>("View_StudentFinancialWidget");
 
                     b.Property<bool>("View_StudentScore");
@@ -2300,7 +2300,6 @@ namespace SCMR_Api.Migrations
                             View_ScoreThemplate = false,
                             View_StdPayment = false,
                             View_Student = false,
-                            View_StudentDailySchedule = false,
                             View_StudentFinancialWidget = false,
                             View_StudentScore = false,
                             View_StudentStudyRecord = false,
@@ -2506,47 +2505,6 @@ namespace SCMR_Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("sm.Student");
-                });
-
-            modelBuilder.Entity("SCMR_Api.Model.StudentDailySchedule", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-                    b.Property<string>("ConsultantComment");
-
-                    b.Property<DateTime?>("ConsultantCommentDate");
-
-                    b.Property<int>("CourseId");
-
-                    b.Property<DateTime>("DateCreate");
-
-                    b.Property<DateTime>("DateExecute");
-
-                    b.Property<string>("FromTime");
-
-                    b.Property<int>("State");
-
-                    b.Property<int>("StdClassMngId");
-
-                    b.Property<string>("StudentParentComment");
-
-                    b.Property<DateTime?>("StudentParentCommentDate");
-
-                    b.Property<string>("ToTime");
-
-                    b.Property<int>("Type");
-
-                    b.Property<string>("Volume");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("StdClassMngId");
-
-                    b.ToTable("StudentDailySchedules");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.StudentInfo", b =>
@@ -2913,10 +2871,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2020, 9, 25, 15, 45, 16, 35, DateTimeKind.Local).AddTicks(9098),
+                            DateAdd = new DateTime(2020, 9, 12, 23, 46, 55, 972, DateTimeKind.Local).AddTicks(6163),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("975c5178-27f5-4684-8f27-0d94c1a8f8b2"),
+                            GId = new Guid("38097ba1-7cac-4546-9d3a-27a9b1dd143c"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",
@@ -3511,19 +3469,6 @@ namespace SCMR_Api.Migrations
                         .WithMany("StdClassMngs")
                         .HasForeignKey("YeareducationId")
                         .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("SCMR_Api.Model.StudentDailySchedule", b =>
-                {
-                    b.HasOne("SCMR_Api.Model.Course", "Course")
-                        .WithMany()
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("SCMR_Api.Model.StdClassMng", "StdClassMng")
-                        .WithMany()
-                        .HasForeignKey("StdClassMngId")
-                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.StudentInfo", b =>
