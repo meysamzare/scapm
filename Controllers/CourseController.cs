@@ -199,7 +199,8 @@ namespace SCMR_Api.Controllers
                         name = c.Name + " (" + c.Teacher.Name + ")",
                         TeacherId = c.TeacherId,
                         GradeId = c.GradeId,
-                        YeareducationId = c.Grade.YeareducationId
+                        YeareducationId = c.Grade.YeareducationId,
+                        teacherName = c.Teacher.Name
                     })
                     .Where(c => c.YeareducationId == nowYeareducationId)
                 .ToListAsync();

@@ -89,9 +89,11 @@ namespace SCMR_Api
 
                 db.ILogSystems.Add(new ILogSystem
                 {
+                    Type = "System Crash Report",
+                    Object = e.ToString(),
                     Date = DateTime.Now,
                     Event = "System Crash Report",
-                    Desc = e.ToString() + " lineNumber = " + line + ", InnerException = " + e.InnerException,
+                    ResponseData = " lineNumber = " + line + ", InnerException = " + e.InnerException,
                     agentId = 0,
                     agentName = "---",
                     agentType = "Api",
@@ -290,6 +292,11 @@ namespace SCMR_Api
                 persianStr = persianStr.Replace(item, LettersDictionary[item]);
             }
             return persianStr;
+        }
+
+        public static bool EqualsAnyOf(this object value, params object[] targets)
+        {
+            return targets.Any(target => target != null ? target.Equals(value) : false);
         }
 
         public static string ToPersianDate(this DateTime date)

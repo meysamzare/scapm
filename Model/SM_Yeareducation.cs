@@ -3,17 +3,13 @@ using System.ComponentModel.DataAnnotations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Globalization;
 
 namespace SCMR_Api.Model
 {
     [Table("sm.Yeareducation")]
     public class Yeareducation
     {
-        public Yeareducation()
-        {
-
-        }
+        public Yeareducation() { }
 
         [Key]
         [Column("edu.YeareduCode")]
@@ -34,59 +30,27 @@ namespace SCMR_Api.Model
         public bool IsActive { get; set; }
 
 
+        public YeareducationScoreType ScoreType { get; set; }
 
 
         public virtual IList<Grade> Grades { get; set; }
-
         public virtual IList<StdClassMng> StdClassMngs { get; set; }
-
         public virtual IList<Exam> Exams { get; set; }
-
-
         public virtual IList<ClassBook> ClassBooks { get; set; }
 
 
-        public bool haveGrade
-        {
-            get
-            {
-                if (Grades == null)
-                {
-                    return false;
-                }
-                return Grades.Any();
-            }
-        }
-
-        public bool haveExam
-        {
-            get
-            {
-                if (Exams == null)
-                {
-                    return false;
-                }
-                return Exams.Any();
-            }
-        }
+        public bool haveGrade => Grades == null ? false : Grades.Any();
+        public bool haveExam => Exams == null ? false : Exams.Any();
+        public string DateStartPersian => DateStart.ToPersianDate();
+        public string DateEndPersian => DateEnd.ToPersianDate();
 
 
 
-        public string DateStartPersian
-        {
-            get
-            {
-                return DateStart.ToPersianDate();
-            }
-        }
+    }
 
-        public string DateEndPersian
-        {
-            get
-            {
-                return DateEnd.ToPersianDate();
-            }
-        }
-
+    public enum YeareducationScoreType
+    {
+        Normal = 1,
+        Descriptive
     }
 }

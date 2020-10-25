@@ -258,7 +258,11 @@ namespace SCMR_Api.Controllers
 
                 if (!string.IsNullOrEmpty(param.searchText))
                 {
-                    questions = questions.Where(c => c.Name.Contains(param.searchText) || c.Title.Contains(param.searchText));
+                    questions = questions.Where(c => c.Name.Contains(param.searchText) || 
+                        c.Title.Contains(param.searchText) || 
+                        c.Desc1.Contains(param.searchText) || 
+                        c.Desc1.Contains(param.searchText) || 
+                        c.Source.Contains(param.searchText));
                 }
 
                 count = await questions.CountAsync();

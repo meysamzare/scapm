@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
 
 namespace SCMR_Api.Model
 {
@@ -121,7 +119,11 @@ namespace SCMR_Api.Model
             }
             if (def == QueDefact.Hard)
             {
-                return "سخت";
+                return "دشوار";
+            }
+            if (def == QueDefact.VeryHard)
+            {
+                return "خیلی دشوار";
             }
             return "";
         }
@@ -140,6 +142,7 @@ namespace SCMR_Api.Model
     {
         Hard = 1,
         Modrate = 2,
-        Easy = 3
+        Easy = 3,
+        VeryHard = 4
     }
 }

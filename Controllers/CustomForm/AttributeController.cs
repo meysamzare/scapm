@@ -192,7 +192,7 @@ namespace SCMR_Api.Controllers
                     UnitId = unitId,
                     AttrType = AttrType.Question,
                     IsInClient = true,
-                    IsRequired = true,
+                    IsRequired = false,
                     Score = question.Mark,
                     QuestionId = question.Id,
                     IsTemplate = false
@@ -511,7 +511,6 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
-        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAttrsForCat([FromBody] int catId)
         {
             try
@@ -602,13 +601,15 @@ namespace SCMR_Api.Controllers
         {
             try
             {
+                var cat = await db.Categories.FirstOrDefaultAsync(c => c.Id == catId);
                 var attrlist = await getAttrForCat(catId);
 
                 var attrListSelected = attrlist
                     .Where(c => c.IsInClient == true)
                         .OrderBy(c => c.UnitId)
-                            .ThenBy(c => c.Order)
-                .Select(c => new
+                            .ThenBy(c => c.QuestionId)
+                                .ThenBy(c => c.Order)
+                .Select(c => new RegisterItemAttrs
                 {
                     Id = c.Id,
                     AttrTypeInt = c.AttrTypeToInt(c.AttrType),
@@ -623,9 +624,48 @@ namespace SCMR_Api.Controllers
                     IsMeliCode = c.IsMeliCode,
                     AttributeOptions = c.getAttributeOptions(false, c.AttrType, c.AttributeOptions, c.Question == null || c.Question.QuestionOptions == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
                     QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
+                    QuestionDefct = c.Question != null ? c.Question.Defact : 0,
                     ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent
                 })
                 .ToList();
+
+                if (cat.UseLimitedRandomQuestionNumber && cat.Type == CategoryTotalType.onlineExam)
+                {
+                    var nonQuestionAttrs = attrListSelected.Where(c => c.AttrTypeInt != 11).ToList();
+                    var questionAttrs = attrListSelected.Where(c => c.AttrTypeInt == 11).ToList();
+
+                    var limitedQuestionAttrs = new List<RegisterItemAttrs>();
+
+                    var veryHardQuestionNumber = cat.VeryHardQuestionNumber.HasValue ? cat.VeryHardQuestionNumber.Value : 0;
+                    var hardQuestionNumber = cat.HardQuestionNumber.HasValue ? cat.HardQuestionNumber.Value : 0;
+                    var moderateQuestionNumber = cat.ModerateQuestionNumber.HasValue ? cat.ModerateQuestionNumber.Value : 0;
+                    var easyQuestionNumber = cat.EasyQuestionNumber.HasValue ? cat.EasyQuestionNumber.Value : 0;
+
+
+                    var veryHardQuestions = questionAttrs.Where(c => c.QuestionDefct == QueDefact.VeryHard).OrderBy(c => Guid.NewGuid()).Take(veryHardQuestionNumber);
+                    var hardQuestions = questionAttrs.Where(c => c.QuestionDefct == QueDefact.Hard).OrderBy(c => Guid.NewGuid()).Take(hardQuestionNumber);
+                    var moderateQuestions = questionAttrs.Where(c => c.QuestionDefct == QueDefact.Modrate).OrderBy(c => Guid.NewGuid()).Take(moderateQuestionNumber);
+                    var easyQuestions = questionAttrs.Where(c => c.QuestionDefct == QueDefact.Easy).OrderBy(c => Guid.NewGuid()).Take(easyQuestionNumber);
+
+
+                    limitedQuestionAttrs.AddRange(veryHardQuestions);
+                    limitedQuestionAttrs.AddRange(hardQuestions);
+                    limitedQuestionAttrs.AddRange(moderateQuestions);
+                    limitedQuestionAttrs.AddRange(easyQuestions);
+
+                    if (limitedQuestionAttrs.Count > questionAttrs.Count)
+                    {
+                        limitedQuestionAttrs = limitedQuestionAttrs.Take(questionAttrs.Count).ToList();
+                    }
+
+                    var onlineExamAttrs = new List<RegisterItemAttrs>();
+
+                    onlineExamAttrs.AddRange(nonQuestionAttrs);
+                    onlineExamAttrs.AddRange(limitedQuestionAttrs);
+
+
+                    attrListSelected = onlineExamAttrs;
+                }
 
                 return this.DataFunction(true, attrListSelected);
             }
@@ -768,6 +808,25 @@ namespace SCMR_Api.Controllers
             }
         }
 
+    }
+
+    public class RegisterItemAttrs
+    {
+        public int Id { get; set; }
+        public int AttrTypeInt { get; set; }
+        public int UnitId { get; set; }
+        public bool IsRequired { get; set; }
+        public bool IsUniq { get; set; }
+        public string Title { get; set; }
+        public string Placeholder { get; set; }
+        public string Desc { get; set; }
+        public string Values { get; set; }
+        public int MaxFileSize { get; set; }
+        public bool IsMeliCode { get; set; }
+        public List<AttributeOption> AttributeOptions { get; set; }
+        public int QuestionType { get; set; }
+        public QueDefact QuestionDefct { get; set; }
+        public string ComplatabelContent { get; set; }
     }
 
     public class AddQuestionForCatParam

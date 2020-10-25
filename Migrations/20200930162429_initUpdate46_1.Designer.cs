@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20200930162429_initUpdate46_1")]
+    partial class initUpdate46_1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -409,25 +411,6 @@ namespace SCMR_Api.Migrations
                     b.ToTable("sm.Course");
                 });
 
-            modelBuilder.Entity("SCMR_Api.Model.DescriptiveScore", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-                    b.Property<string>("EnName");
-
-                    b.Property<double>("FromNumber");
-
-                    b.Property<string>("Name");
-
-                    b.Property<double>("ToNumber");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DescriptiveScores");
-                });
-
             modelBuilder.Entity("SCMR_Api.Model.Education", b =>
                 {
                     b.Property<int>("Id")
@@ -534,8 +517,6 @@ namespace SCMR_Api.Migrations
                     b.Property<int>("BlankAnswer")
                         .HasColumnName("Ex.BlankAnswer");
 
-                    b.Property<int?>("DescriptiveScoreId");
-
                     b.Property<int>("ExamId")
                         .HasColumnName("Exsc.Examid");
 
@@ -560,8 +541,6 @@ namespace SCMR_Api.Migrations
                         .HasColumnName("Ex.CorrectAnswer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("DescriptiveScoreId");
 
                     b.HasIndex("ExamId");
 
@@ -1060,7 +1039,7 @@ namespace SCMR_Api.Migrations
 
                     b.Property<string>("Title");
 
-                    b.Property<int?>("UnitId");
+                    b.Property<int>("UnitId");
 
                     b.HasKey("Id");
 
@@ -2388,7 +2367,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("sm.Salary", "tahaschi_meysam");
+                    b.ToTable("sm.Salary");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.ScoreThemplate", b =>
@@ -2946,10 +2925,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2020, 10, 22, 18, 33, 49, 320, DateTimeKind.Local).AddTicks(642),
+                            DateAdd = new DateTime(2020, 9, 30, 19, 54, 26, 687, DateTimeKind.Local).AddTicks(9529),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("e3980253-beae-44d6-a381-4f94ff642d4e"),
+                            GId = new Guid("9d9e7b75-eca0-4133-8880-b7eeb7ac7ed0"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",
@@ -3107,8 +3086,6 @@ namespace SCMR_Api.Migrations
 
                     b.Property<string>("Name")
                         .HasColumnName("edu.YeareduName");
-
-                    b.Property<int>("ScoreType");
 
                     b.HasKey("Id");
 
@@ -3281,10 +3258,6 @@ namespace SCMR_Api.Migrations
 
             modelBuilder.Entity("SCMR_Api.Model.ExamScore", b =>
                 {
-                    b.HasOne("SCMR_Api.Model.DescriptiveScore", "DescriptiveScore")
-                        .WithMany()
-                        .HasForeignKey("DescriptiveScoreId");
-
                     b.HasOne("SCMR_Api.Model.Exam", "Exam")
                         .WithMany("ExamScores")
                         .HasForeignKey("ExamId")
@@ -3386,7 +3359,8 @@ namespace SCMR_Api.Migrations
 
                     b.HasOne("SCMR_Api.Model.Unit", "Unit")
                         .WithMany("Items")
-                        .HasForeignKey("UnitId");
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.ItemAttribute", b =>

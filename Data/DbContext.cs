@@ -256,10 +256,11 @@ namespace SCMR_Api.Data
         public DbSet<WorkBookDetail> WorkBookDetails { get; set; }
 
 
-
         public DbSet<OnlineClass> OnlineClasses { get; set; }
 
-
         public DbSet<StudentDailySchedule> StudentDailySchedules { get; set; }
+
+
+        public DbSet<DescriptiveScore> DescriptiveScores { get; set; }
     }
 }

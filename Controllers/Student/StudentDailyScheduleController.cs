@@ -55,6 +55,23 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> Edit([FromBody] StudentDailySchedule param)
+        {
+            try
+            {
+                db.Update(param);
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> SetState([FromBody] SetStateParam param)
         {
             try
@@ -88,6 +105,7 @@ namespace SCMR_Api.Controllers
                     .Where(c => c.StdClassMngId == param.stdClassMngId)
                 .Include(c => c.Course)
                 .OrderByDescending(c => c.Id)
+                    .ThenBy(c => c.State)
                 .ToListAsync();
 
                 return this.DataFunction(true, SDSs);
@@ -108,6 +126,30 @@ namespace SCMR_Api.Controllers
                 .FirstAsync(c => c.Id == id);
 
                 return this.DataFunction(true, SDS);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        
+        [HttpPost]
+        public async Task<IActionResult> getStudentDailyScheduleWithCourses([FromBody] int id)
+        {
+            try
+            {
+                var SDS = await db.StudentDailySchedules
+                    .Include(c => c.Course)
+                .FirstAsync(c => c.Id == id);
+
+                var courses = await db.Courses.Where(c => c.GradeId == SDS.Course.GradeId).ToListAsync();
+
+                return this.DataFunction(true, new
+                {
+                    sds = SDS,
+                    courses = courses
+                });
             }
             catch (System.Exception e)
             {

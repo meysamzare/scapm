@@ -66,10 +66,6 @@ sealed class RoleAttribute : System.Attribute, IActionFilter
                     context.Result = new NotFoundObjectResult("User Dose not Access to Requested Section!");
                 }
             }
-            else
-            {
-                context.Result = new UnauthorizedObjectResult("User not found!");
-            }
         }
         catch { }
     }

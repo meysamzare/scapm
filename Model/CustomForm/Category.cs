@@ -78,10 +78,18 @@ namespace SCMR_Api.Model
         public int? WorkbookId { get; set; }
 
 
+        public bool UseLimitedRandomQuestionNumber { get; set; }
+
+        public int? VeryHardQuestionNumber { get; set; }
+        public int? HardQuestionNumber { get; set; }
+        public int? ModerateQuestionNumber { get; set; }
+        public int? EasyQuestionNumber { get; set; }
+
+
 
         public int[] TeachersIdAccess { get; set; }
 
-        
+
         public bool ShowScoreAfterDone { get; set; }
 
 
@@ -192,7 +200,12 @@ namespace SCMR_Api.Model
                 WorkbookId = v.workbookId,
                 TeachersIdAccess = v.teachersIdAccess,
                 ShowScoreAfterDone = v.showScoreAfterDone,
-                CalculateNegativeScore = v.calculateNegativeScore
+                CalculateNegativeScore = v.calculateNegativeScore,
+                UseLimitedRandomQuestionNumber = v.useLimitedRandomQuestionNumber,
+                VeryHardQuestionNumber = v.veryHardQuestionNumber,
+                HardQuestionNumber = v.hardQuestionNumber,
+                ModerateQuestionNumber = v.moderateQuestionNumber,
+                EasyQuestionNumber = v.easyQuestionNumber
             };
 
             return cat;
@@ -231,17 +244,36 @@ namespace SCMR_Api.Model
 
         #region functions
 
-        public double getTotalScore(List<Model.Attribute> attrs)
+        public double getTotalScore(
+            List<Model.Attribute> attrs,
+            bool useLimitedRandomQuestionNumber,
+            int? veryHardQuestionNumber,
+            int? hardQuestionNumber,
+            int? moderateQuestionNumber,
+            int? easyQuestionNumber
+        )
         {
             double sum = 0;
 
-            attrs.ForEach(attr =>
+            if (useLimitedRandomQuestionNumber)
             {
-                if (attr.AttrType == AttrType.combobox || attr.AttrType == AttrType.radiobutton || attr.AttrType == AttrType.Question)
+                var veryHardQuestionNumberInt = veryHardQuestionNumber.HasValue ? veryHardQuestionNumber.Value : 0;
+                var hardQuestionNumberInt = hardQuestionNumber.HasValue ? hardQuestionNumber.Value : 0;
+                var moderateQuestionNumberInt = moderateQuestionNumber.HasValue ? moderateQuestionNumber.Value : 0;
+                var easyQuestionNumberInt = easyQuestionNumber.HasValue ? easyQuestionNumber.Value : 0;
+
+                sum = veryHardQuestionNumberInt + hardQuestionNumberInt + moderateQuestionNumberInt + easyQuestionNumberInt;
+            }
+            else
+            {
+                attrs.ForEach(attr =>
                 {
-                    sum += attr.Score;
-                }
-            });
+                    if (attr.AttrType == AttrType.combobox || attr.AttrType == AttrType.radiobutton || attr.AttrType == AttrType.Question)
+                    {
+                        sum += attr.Score;
+                    }
+                });
+            }
 
             return sum;
         }

@@ -122,7 +122,10 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var cat = await db.Categories.Include(c => c.Children).SingleAsync(c => c.Id == addCategory.id);
+                var cat = await db.Categories
+                    .Include(c => c.Children)
+                    .Include(c => c.Attributes)
+                .SingleAsync(c => c.Id == addCategory.id);
 
                 if (addCategory.parentId == cat.Id)
                 {
@@ -133,6 +136,42 @@ namespace SCMR_Api.Controllers
                 {
                     return this.UnSuccessFunction("این فرم نمی تواند انتخاب شود c2");
                 }
+
+                if (addCategory.useLimitedRandomQuestionNumber && cat.Type == CategoryTotalType.onlineExam)
+                {
+                    if (
+                        addCategory.veryHardQuestionNumber.EqualsAnyOf(null, "", 0) &&
+                        addCategory.hardQuestionNumber.EqualsAnyOf(null, "", 0) &&
+                        addCategory.moderateQuestionNumber.EqualsAnyOf(null, "", 0) &&
+                        addCategory.easyQuestionNumber.EqualsAnyOf(null, "", 0)
+                    )
+                    {
+                        return this.UnSuccessFunction("شما می بایست حداقل یکی از میزان سختی سوالات را وارد نمایید");
+                    }
+
+                    var veryHardQuestionNumber = addCategory.veryHardQuestionNumber.HasValue ? addCategory.veryHardQuestionNumber.Value : 0;
+                    var hardQuestionNumber = addCategory.hardQuestionNumber.HasValue ? addCategory.hardQuestionNumber.Value : 0;
+                    var moderateQuestionNumber = addCategory.moderateQuestionNumber.HasValue ? addCategory.moderateQuestionNumber.Value : 0;
+                    var easyQuestionNumber = addCategory.easyQuestionNumber.HasValue ? addCategory.easyQuestionNumber.Value : 0;
+
+                    var sumOfQuestionNumbers = veryHardQuestionNumber + hardQuestionNumber + moderateQuestionNumber + easyQuestionNumber;
+
+                    if (sumOfQuestionNumbers > cat.Attributes.Where(c => c.AttrType == AttrType.Question).Count())
+                    {
+                        return this.UnSuccessFunction("جمع سوالات تصادفی نمی تواند از تعداد سوال های آزمون بیشتر باشد");
+                    }
+                }
+
+
+
+                cat.UseLimitedRandomQuestionNumber = addCategory.useLimitedRandomQuestionNumber;
+
+                cat.VeryHardQuestionNumber = addCategory.veryHardQuestionNumber;
+                cat.HardQuestionNumber = addCategory.hardQuestionNumber;
+                cat.ModerateQuestionNumber = addCategory.moderateQuestionNumber;
+                cat.EasyQuestionNumber = addCategory.easyQuestionNumber;
+
+
 
                 cat.ParentId = addCategory.parentId;
                 cat.Title = addCategory.title;
@@ -347,7 +386,6 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getAllByTeacher([FromBody] getAllByTeacherParam param)
         {
             try
@@ -362,7 +400,11 @@ namespace SCMR_Api.Controllers
                 }
                 else
                 {
-                    var teacherCourseIds = db.Teachers.FirstOrDefault(c => c.Id == param.teacherId).Courses.Select(c => c.Id);
+                    var teacher = await db.Teachers
+                        .Include(c => c.Courses)
+                    .FirstOrDefaultAsync(c => c.Id == param.teacherId);
+
+                    var teacherCourseIds = teacher.Courses != null ? teacher.Courses.Select(c => c.Id).ToList() : new List<int>();
 
                     catList = await db.Categories
                         .Where(c => c.Type == (CategoryTotalType)param.type)
@@ -539,6 +581,88 @@ namespace SCMR_Api.Controllers
                 {
                     return this.UnSuccessFunction("سوالی با فیلتر مورد نظر یافت نشد");
                 }
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AbsenceForOnlineExam([FromBody] int catId)
+        {
+            try
+            {
+                var cat = await db.Categories
+                    .Include(c => c.Attributes)
+                    .Include(c => c.Items)
+                        .ThenInclude(c => c.ItemAttribute)
+                            .ThenInclude(c => c.Attribute)
+                .FirstOrDefaultAsync(c => c.Id == catId);
+
+                if (cat.Type != CategoryTotalType.onlineExam)
+                {
+                    return this.UnSuccessFunction("نمون برگ انتخابی قابلیت حضور غیاب را ندارد");
+                }
+
+                var studentsList = new List<Student>();
+
+                if (cat.ClassId.HasValue)
+                {
+                    studentsList = await db.StdClassMngs.Where(c => c.ClassId == cat.ClassId.Value).Select(c => c.Student).ToListAsync();
+                }
+                if (cat.GradeId.HasValue)
+                {
+                    studentsList = await db.StdClassMngs.Where(c => c.GradeId == cat.GradeId.Value).Select(c => c.Student).ToListAsync();
+                }
+
+
+                if (studentsList.Count == 0)
+                {
+                    return this.UnSuccessFunction("دانش آموزی برای این آزمون مشخص نشد!");
+                }
+
+                var peresentStuedntsMeliCode = cat.Items.SelectMany(c => c.ItemAttribute).Where(c => c.Attribute.IsMeliCode).Select(c => c.AttrubuteValue);
+
+                var mustToBeAddedItems = new List<Item>();
+
+                studentsList.ForEach(std =>
+                {
+                    if (!peresentStuedntsMeliCode.Contains(std.IdNumber2))
+                    {
+                        var itemAttrs = new List<ItemAttribute>();
+
+                        cat.Attributes.ToList().ForEach(attr =>
+                        {
+                            itemAttrs.Add(new ItemAttribute
+                            {
+                                AttributeId = attr.Id,
+                                AttrubuteValue = attr.IsMeliCode ? std.IdNumber2 : ""
+                            });
+                        });
+
+
+                        var item = new Item()
+                        {
+                            IsActive = false,
+                            DateAdd = DateTime.Now,
+                            AuthorizedUsername = "---",
+                            AuthorizedFullName = "",
+                            AuthorizedType = 0,
+                            CategoryId = cat.Id,
+                            UnitId = db.Units.First().Id,
+                            RahCode = new Random().Next(11111111, 99999999),
+                            Title = std.LastName + " - " + std.Name + " (غائب)",
+                            ItemAttribute = itemAttrs
+                        };
+
+                        db.Items.Add(item);
+                    }
+                });
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
             }
             catch (System.Exception e)
             {
@@ -815,7 +939,6 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        [Role(RolePrefix.View, roleTitle)]
         public async Task<IActionResult> getSearchedAttrs([FromBody] int catId)
         {
             try
@@ -1073,6 +1196,16 @@ namespace SCMR_Api.Controllers
         public bool showScoreAfterDone { get; set; }
 
         public bool calculateNegativeScore { get; set; }
+
+
+        public bool useLimitedRandomQuestionNumber { get; set; }
+
+        public int? veryHardQuestionNumber { get; set; }
+        public int? hardQuestionNumber { get; set; }
+        public int? moderateQuestionNumber { get; set; }
+        public int? easyQuestionNumber { get; set; }
+
+
     }
 
     public class JsTreeModel

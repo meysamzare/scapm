@@ -30,6 +30,10 @@ namespace SCMR_Api.Model
 
 
 
+        public int? DescriptiveScoreId { get; set; }
+
+
+
         [Column("Ex.TopScore")]
         public int TopScore { get; set; }
 
@@ -56,6 +60,24 @@ namespace SCMR_Api.Model
 
         [ForeignKey("StudentId")]
         public virtual Student Student { get; set; }
+
+
+        [ForeignKey("DescriptiveScoreId")]
+        public virtual DescriptiveScore DescriptiveScore { get; set; }
+
+        public string getDescriptiveName(DescriptiveScore descriptiveScore)
+        {
+            if (descriptiveScore != null)
+            {
+                return descriptiveScore.Name;
+            }
+
+            return "";
+        }
+
+
+        public string descriptiveName => getDescriptiveName(DescriptiveScore);
+
 
         public string getRating(List<ExamScore> examScores, double score)
         {

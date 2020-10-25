@@ -104,7 +104,6 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
-        [Role(RolePrefix.View, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> Get([FromBody] getParamComplex getparamsComplex)
         {
             try
@@ -179,7 +178,10 @@ namespace SCMR_Api.Controllers
                     {
                         if (!string.IsNullOrWhiteSpace(attrvalsearch.item.val))
                         {
-                            var itemAttrsForAttrId = itemAttrs.Where(c => c.AttributeId == attrvalsearch.item.attrId && c.AttrubuteValue.Contains(attrvalsearch.item.val)).Include(c => c.Item);
+                            var itemAttrsForAttrId = itemAttrs
+                                .Where(c => c.AttributeId == attrvalsearch.item.attrId && c.AttrubuteValue.Contains(attrvalsearch.item.val))
+                                .Include(c => c.Item)
+                                    .ThenInclude(c => c.Category);
 
                             foreach (var itemAttr in itemAttrsForAttrId.WithIndex())
                             {
@@ -281,7 +283,19 @@ namespace SCMR_Api.Controllers
                 items = items.Skip((getparamsComplex.param.pageIndex - 1) * getparamsComplex.param.pageSize);
                 items = items.Take(getparamsComplex.param.pageSize);
 
-                var q = items.ToList();
+                var q = items
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        Title = c.AuthorizedUsername == "---" ? c.Title : $"{c.AuthorizedFullName} - {c.AuthorizedUsername}",
+                        IsActive = c.IsActive,
+                        RahCode = c.RahCode,
+                        CategoryString = c.Category != null ? c.Category.Title : "",
+                        dateAddPersian = c.DateAdd.HasValue ? c.DateAdd.Value.ToPersianDateWithTime() : "",
+                        dateEditPersian = c.DateEdit.HasValue ? c.DateEdit.Value.ToPersianDateWithTime() : "",
+                        CategoryId = c.CategoryId
+                    })
+                .ToList();
 
                 return Json(new jsondata
                 {
@@ -393,7 +407,6 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        [Role(RolePrefix.View, roleTitle, onlineExamRoleTitle)]
         public async Task<IActionResult> getItem([FromBody] int id)
         {
             try
@@ -967,7 +980,7 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var cat = await db.Categories.FirstOrDefaultAsync(c => c.Id == param.catId);
+                var cat = await db.Categories.Include(c => c.Items).FirstOrDefaultAsync(c => c.Id == param.catId);
 
                 var isValid = false;
 
@@ -1000,7 +1013,7 @@ namespace SCMR_Api.Controllers
                         {
                             userType = CategoryAuthorizeState.PMA;
                             var std = await db.Students.FirstOrDefaultAsync(c => c.IdNumber2 == param.username && c.ParentsPassword == param.password);
-                            userFullname = std.Name + " " + std.LastName;
+                            userFullname = std.LastName + " - " + std.Name;
                         }
                         break;
                     case CategoryAuthorizeState.SMA:
@@ -1009,7 +1022,7 @@ namespace SCMR_Api.Controllers
                         {
                             userType = CategoryAuthorizeState.SMA;
                             var std = await db.Students.FirstOrDefaultAsync(c => c.IdNumber2 == param.username && c.ParentsPassword == param.password);
-                            userFullname = std.Name + " " + std.LastName;
+                            userFullname = std.LastName + " - " + std.Name;
                         }
                         break;
                     case CategoryAuthorizeState.All:
@@ -1024,13 +1037,13 @@ namespace SCMR_Api.Controllers
                         {
                             userType = CategoryAuthorizeState.PMA;
                             var std = await db.Students.FirstOrDefaultAsync(c => c.IdNumber2 == param.username && c.ParentsPassword == param.password);
-                            userFullname = std.Name + " " + std.LastName;
+                            userFullname = std.LastName + " - " + std.Name;
                         }
                         else if (anyStudent)
                         {
                             userType = CategoryAuthorizeState.SMA;
                             var std = await db.Students.FirstOrDefaultAsync(c => c.IdNumber2 == param.username && c.ParentsPassword == param.password);
-                            userFullname = std.Name + " " + std.LastName;
+                            userFullname = std.LastName + " - " + std.Name;
                         }
                         break;
 
@@ -1039,12 +1052,17 @@ namespace SCMR_Api.Controllers
                         break;
                 }
 
-                var jwt = BuildToken(param.username, 15);
-
                 if (!isValid)
                 {
                     return this.UnSuccessFunction("نام کاربری و یا کلمه عبور شما اشتباه است و یا شما مجوز مشاهده این نمون برگ را ندارید!");
                 }
+
+                if (cat.Items.Any(c => c.AuthorizedUsername == param.username))
+                {
+                    return this.UnSuccessFunction("داده ای با این نام کاربری قبلا در سیستم ثبت شده است");
+                }
+
+                var jwt = BuildToken(param.username, 15);
 
                 return this.SuccessFunction(data: new
                 {
@@ -1183,7 +1201,14 @@ namespace SCMR_Api.Controllers
                                 .ThenInclude(c => c.QuestionOptions)
                 .SingleAsync(c => c.Id == itemid);
 
-                var catTotalScore = cat.getTotalScore(cat.Attributes.ToList());
+                var catTotalScore = cat.getTotalScore(
+                    cat.Attributes.ToList(),
+                    cat.UseLimitedRandomQuestionNumber,
+                    cat.VeryHardQuestionNumber,
+                    cat.HardQuestionNumber,
+                    cat.ModerateQuestionNumber,
+                    cat.EasyQuestionNumber);
+
                 var itemScore = itemIncluded.getTotalScore;
 
                 var scoreString = cat.ShowScoreAfterDone && cat.Type == CategoryTotalType.onlineExam ? $"\n نمره فعلی شما: {itemScore} از {catTotalScore} \n" : "";
@@ -1333,7 +1358,7 @@ namespace SCMR_Api.Controllers
                         worksheet.Cells[1 + (index + 1), 5].Value = item.RahCode;
                         worksheet.Cells[1 + (index + 1), 6].Value = item.UnitString;
                         worksheet.Cells[1 + (index + 1), 7].Value = item.CategoryString;
-                        worksheet.Cells[1 + (index + 1), 8].Value = $"{getTotalScoreForItem(attrs, item.ItemAttribute.ToList())}/{cat.getTotalScore(cat.Attributes.ToList())}";
+                        worksheet.Cells[1 + (index + 1), 8].Value = $"{getTotalScoreForItem(attrs, item.ItemAttribute.ToList())}/{cat.getTotalScore(cat.Attributes.ToList(), cat.UseLimitedRandomQuestionNumber, cat.VeryHardQuestionNumber, cat.HardQuestionNumber, cat.ModerateQuestionNumber, cat.EasyQuestionNumber)}";
 
 
                         var trueCount = 0;

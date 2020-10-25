@@ -423,7 +423,12 @@ namespace SCMR_Api.Controllers
                     examName = c.Category.Title,
                     studentName = student.Name + " " + student.LastName,
                     gradeId = c.Category.GradeId.HasValue ? c.Category.GradeId.Value : 0,
-                    TopScore = c.Category.getTotalScore(c.Category.Attributes.ToList())
+                    TopScore = c.Category.getTotalScore(c.Category.Attributes.ToList(), 
+                        c.Category.UseLimitedRandomQuestionNumber,
+                        c.Category.VeryHardQuestionNumber,
+                        c.Category.HardQuestionNumber,
+                        c.Category.ModerateQuestionNumber,
+                        c.Category.EasyQuestionNumber)
                 }));
 
                 return this.DataFunction(true, examscores);
@@ -533,7 +538,12 @@ namespace SCMR_Api.Controllers
                     {
                         Id = $"OE{l.Id}",
                         CourseId = l.CourseId.HasValue ? l.CourseId.Value : 0,
-                        TopScore = l.CalculateNegativeScore ? 20 : l.getTotalScore(l.Attributes.ToList())
+                        TopScore = l.CalculateNegativeScore ? 20 : l.getTotalScore(l.Attributes.ToList(),
+                                l.UseLimitedRandomQuestionNumber,
+                                l.VeryHardQuestionNumber,
+                                l.HardQuestionNumber,
+                                l.ModerateQuestionNumber,
+                                l.EasyQuestionNumber)
                     }).ToList();
 
                     stdTemp.onlineExamScores = items.Where(v => v.ItemAttribute.Where(f => f.Attribute.IsMeliCode).Select(g => g.AttrubuteValue.Trim()).Contains(c.IdNumber2.Trim()))
@@ -733,7 +743,12 @@ namespace SCMR_Api.Controllers
                             .Select(l => new ExamScoreForCourseAvg
                             {
                                 Score = l.getTotalScoreFunction(l.ItemAttribute, l.Category.CalculateNegativeScore),
-                                TopScore = l.Category.CalculateNegativeScore ? 20 : l.Category.getTotalScore(l.Category.Attributes.ToList()),
+                                TopScore = l.Category.CalculateNegativeScore ? 20 : l.Category.getTotalScore(l.Category.Attributes.ToList(),
+                                        l.Category.UseLimitedRandomQuestionNumber,
+                                        l.Category.VeryHardQuestionNumber,
+                                        l.Category.HardQuestionNumber,
+                                        l.Category.ModerateQuestionNumber,
+                                        l.Category.EasyQuestionNumber),
                                 CourseId = l.Category.CourseId.HasValue ? l.Category.CourseId.Value : 0
                             }).ToList();
 

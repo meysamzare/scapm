@@ -547,7 +547,9 @@ namespace SCMR_Api.Controllers
                             canShowByWorkBook = c.canShowByWorkBook(c.Workbook),
                             WorkbookId = c.WorkbookId,
                             TopScore = double.Parse(c.TopScore.ToString()),
-                            isOnlineExam = false
+                            isOnlineExam = false,
+                            canShowDetail = false,
+                            isFullDataLoaded = true
                         })
                 .ToListAsync();
 
@@ -569,13 +571,65 @@ namespace SCMR_Api.Controllers
                     Date = c.DatePublish.Value,
                     canShowByWorkBook = c.canShowByWorkBook(c.Workbook),
                     WorkbookId = c.WorkbookId,
-                    TopScore = c.getTotalScore(c.Attributes.ToList()),
-                    isOnlineExam = true
+                    TopScore = c.getTotalScore(c.Attributes.ToList(), c.UseLimitedRandomQuestionNumber,
+                        c.VeryHardQuestionNumber,
+                        c.HardQuestionNumber,
+                        c.ModerateQuestionNumber,
+                        c.EasyQuestionNumber),
+                    isOnlineExam = true,
+                    canShowDetail = c.HaveInfo && c.IsInfoShow ? true : false,
+                    isFullDataLoaded = false
                 }));
 
                 ex = ex.OrderByDescending(c => c.Date).ToList();
 
                 return this.DataFunction(true, ex);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> getOnlineExamFullData([FromBody] int catId)
+        {
+            try
+            {
+                var cat = await db.Categories
+                .Where(c => c.Id == catId)
+                    .Include(c => c.Attributes)
+                    .Include(c => c.Items)
+                        .ThenInclude(c => c.ItemAttribute)
+                            .ThenInclude(c => c.Attribute)
+                                .ThenInclude(c => c.Question)
+                                    .ThenInclude(c => c.QuestionOptions)
+                .Select(c => new
+                {
+                    Id = $"OE{c.Id}",
+                    Name = c.Title,
+                    dateString = c.DatePublish.Value.ToPersianDate(),
+                    courseName = c.Course != null ? c.Course.Name : "",
+                    avgInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Avg),
+                    minInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Min),
+                    maxInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Max),
+                    CourseId = c.CourseId.HasValue ? c.CourseId.Value : 0,
+                    ExamTypeId = c.ExamTypeId.HasValue ? c.ExamTypeId.Value : 0,
+                    Date = c.DatePublish.Value,
+                    canShowByWorkBook = c.canShowByWorkBook(c.Workbook),
+                    WorkbookId = c.WorkbookId,
+                    TopScore = c.getTotalScore(c.Attributes.ToList(),
+                        c.UseLimitedRandomQuestionNumber,
+                        c.VeryHardQuestionNumber,
+                        c.HardQuestionNumber,
+                        c.ModerateQuestionNumber,
+                        c.EasyQuestionNumber),
+                    isOnlineExam = true,
+                    canShowDetail = c.HaveInfo && c.IsInfoShow ? true : false,
+                    isFullDataLoaded = true
+                }).FirstOrDefaultAsync();
+
+                return this.DataFunction(true, cat);
             }
             catch (System.Exception e)
             {
@@ -627,7 +681,12 @@ namespace SCMR_Api.Controllers
                     Date = c.DatePublish.Value,
                     canShowByWorkBook = c.canShowByWorkBook(c.Workbook),
                     WorkbookId = c.WorkbookId,
-                    TopScore = c.getTotalScore(c.Attributes.ToList()),
+                    TopScore = c.getTotalScore(c.Attributes.ToList(),
+                        c.UseLimitedRandomQuestionNumber,
+                        c.VeryHardQuestionNumber,
+                        c.HardQuestionNumber,
+                        c.ModerateQuestionNumber,
+                        c.EasyQuestionNumber),
                     isOnlineExam = true
                 }));
 
@@ -714,10 +773,20 @@ namespace SCMR_Api.Controllers
                             ExamId = $"OE{c.Id}",
                             StudentId = students.FirstOrDefault(std => item.ItemAttribute.Where(v => v.Attribute.IsMeliCode).Select(p => p.AttrubuteValue.Trim().PersianToEnglishDigit()).Contains(std.IdNumber2.Trim().PersianToEnglishDigit())) != null ? students.FirstOrDefault(std => item.ItemAttribute.Where(v => v.Attribute.IsMeliCode).Select(p => p.AttrubuteValue.Trim().PersianToEnglishDigit()).Contains(std.IdNumber2.Trim().PersianToEnglishDigit())).Id : 0,
                             Score = item.getTotalScoreFunction(item.ItemAttribute, item.Category.CalculateNegativeScore),
-                            TopScore = c.getTotalScore(c.Attributes.ToList())
+                            TopScore = c.getTotalScore(c.Attributes.ToList(),
+                                    c.UseLimitedRandomQuestionNumber,
+                                    c.VeryHardQuestionNumber,
+                                    c.HardQuestionNumber,
+                                    c.ModerateQuestionNumber,
+                                    c.EasyQuestionNumber)
                         }).ToList(),
                         students = students.Where(l => c.Items.SelectMany(f => f.ItemAttribute).Where(v => v.Attribute.IsMeliCode).Select(p => p.AttrubuteValue.Trim().PersianToEnglishDigit()).Contains(l.IdNumber2.Trim().PersianToEnglishDigit())).ToList(),
-                        TopScore = c.getTotalScore(c.Attributes.ToList()),
+                        TopScore = c.getTotalScore(c.Attributes.ToList(),
+                                    c.UseLimitedRandomQuestionNumber,
+                                    c.VeryHardQuestionNumber,
+                                    c.HardQuestionNumber,
+                                    c.ModerateQuestionNumber,
+                                    c.EasyQuestionNumber),
                         Source = "---",
                         avgInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Avg),
                         minInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Min),

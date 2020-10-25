@@ -30,7 +30,7 @@ namespace SCMR_Api.Model
         public CategoryAuthorizeState AuthorizedType { get; set; }
 
 
-        public int UnitId { get; set; }
+        public int? UnitId { get; set; }
 
         public int CategoryId { get; set; }
 
@@ -102,7 +102,7 @@ namespace SCMR_Api.Model
 
         public int CategoryRoleAccess => Category == null ? 0 : Category.RoleAccess;
 
-        public string DateAddPersian => DateAdd == null ? "" : DateAdd.Value.ToPersianDate();
+        public string DateAddPersian => DateAdd == null ? "" : DateAdd.Value.ToPersianDateWithTime();
 
         public string DateEditPersian => DateEdit == null ? "" : DateEdit.Value.ToPersianDate();
 
@@ -129,6 +129,12 @@ namespace SCMR_Api.Model
             }
 
             return "";
+        }
+
+        public int getRandomRahCode()
+        {
+            Random random = new System.Random();
+            return random.Next(1111111, 99999999);
         }
 
     }

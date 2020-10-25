@@ -50,6 +50,8 @@ namespace SCMR_Api.Model
         public string studentParentCommentDateString => StudentParentCommentDate.ToPersianDate();
         public string consultantCommentDateString => ConsultantCommentDate.ToPersianDate();
 
+        public int studentId => StdClassMng != null ? StdClassMng.StudentId : 0;
+
         public string courseName => Course != null ? Course.Name : "";
 
         public string getTypeString(StudentDailyScheduleType type)
@@ -74,6 +76,10 @@ namespace SCMR_Api.Model
             {
                 return "جمع بندی";
             }
+            if (type == StudentDailyScheduleType.HalTamrin)
+            {
+                return "حل تمرین";
+            }
 
             return "";
         }
@@ -97,5 +103,6 @@ public enum StudentDailyScheduleType
     TestMotalee,
     TestMoroor,
     Moroor,
-    Jambandi
+    Jambandi,
+    HalTamrin
 }

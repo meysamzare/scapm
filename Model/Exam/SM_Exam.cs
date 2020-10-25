@@ -9,10 +9,7 @@ namespace SCMR_Api.Model
     [Table("sm.Exams")]
     public class Exam
     {
-        public Exam()
-        {
-
-        }
+        public Exam() { }
 
 
         [Key]
@@ -87,6 +84,8 @@ namespace SCMR_Api.Model
 
         [ForeignKey("YeareducationId")]
         public virtual Yeareducation Yeareducation { get; set; }
+
+        public bool isDescriptive => Yeareducation != null ? Yeareducation.ScoreType == YeareducationScoreType.Descriptive : false;
 
         [ForeignKey("CourseId")]
         public virtual Course Course { get; set; }
