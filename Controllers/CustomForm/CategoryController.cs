@@ -676,7 +676,13 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var cat = await db.Categories.Where(c => c.Type == (CategoryTotalType)type && !c.IsArchived).ToListAsync();
+                var cat = await db.Categories.Where(c => c.Type == (CategoryTotalType)type && !c.IsArchived)
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        Title = c.Title
+                    })
+                .ToListAsync();
 
                 return this.DataFunction(true, cat);
             }

@@ -378,6 +378,8 @@ namespace SCMR_Api.Controllers
             try
             {
                 var examscores = await db.ExamScores
+                .Where(c => c.StudentId == getexamscore.studentId)
+                .Where(c => c.Exam.GradeId == getexamscore.gradeId)
                     .Select(c => new
                     {
                         Id = c.Id.ToString(),
@@ -391,8 +393,6 @@ namespace SCMR_Api.Controllers
                         gradeId = c.Exam.GradeId,
                         TopScore = double.Parse(c.Exam.TopScore.ToString())
                     })
-                    .Where(c => c.StudentId == getexamscore.studentId)
-                        .Where(c => c.gradeId == getexamscore.gradeId)
                 .ToListAsync();
 
                 var student = await db.Students.FirstOrDefaultAsync(c => c.Id == getexamscore.studentId);
@@ -423,7 +423,7 @@ namespace SCMR_Api.Controllers
                     examName = c.Category.Title,
                     studentName = student.Name + " " + student.LastName,
                     gradeId = c.Category.GradeId.HasValue ? c.Category.GradeId.Value : 0,
-                    TopScore = c.Category.getTotalScore(c.Category.Attributes.ToList(), 
+                    TopScore = c.Category.getTotalScore(c.Category.Attributes.ToList(),
                         c.Category.UseLimitedRandomQuestionNumber,
                         c.Category.VeryHardQuestionNumber,
                         c.Category.HardQuestionNumber,

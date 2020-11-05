@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20201027185845_initUpdate46_3")]
+    partial class initUpdate46_3
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -425,7 +427,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("TeacherId");
 
-                    b.ToTable("Courses");
+                    b.ToTable("sm.Course");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Education", b =>
@@ -440,7 +442,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Educations");
+                    b.ToTable("sm.EducationTable");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Exam", b =>
@@ -521,7 +523,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("YeareducationId");
 
-                    b.ToTable("Exams");
+                    b.ToTable("sm.Exams");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.ExamScore", b =>
@@ -567,7 +569,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("StudentId");
 
-                    b.ToTable("ExamScores");
+                    b.ToTable("sm.ExamScore");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.ExamType", b =>
@@ -585,7 +587,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ExamTypes");
+                    b.ToTable("sm.ExamTyp");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Financial.Contract", b =>
@@ -615,7 +617,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("ContractTypeId");
 
-                    b.ToTable("Contracts");
+                    b.ToTable("Fin.Contract");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Financial.ContractType", b =>
@@ -632,7 +634,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ContractTypes");
+                    b.ToTable("Fin.ContractType");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Financial.PaymentType", b =>
@@ -653,7 +655,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PaymentTypes");
+                    b.ToTable("Fin.PaymentType");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Financial.StdPayment", b =>
@@ -695,7 +697,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("StudentId");
 
-                    b.ToTable("StdPayments");
+                    b.ToTable("Fin.StdPayment");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Grade", b =>
@@ -738,7 +740,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("YeareducationId");
 
-                    b.ToTable("Grades");
+                    b.ToTable("sm.Grade");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Index.Advertising", b =>
@@ -759,7 +761,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Advertisings");
+                    b.ToTable("Ind.Advertising");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Index.BestStudent", b =>
@@ -784,7 +786,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("BestStudents");
+                    b.ToTable("Ind.BestStudent");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Index.Comment", b =>
@@ -815,7 +817,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("Comments");
+                    b.ToTable("Ind.Comment");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Index.MainSlideShow", b =>
@@ -846,7 +848,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("MainSlideShows");
+                    b.ToTable("Ind.MainSlideShow");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Index.Picture", b =>
@@ -867,7 +869,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("PictureGalleryId");
 
-                    b.ToTable("Pictures");
+                    b.ToTable("Ind.Picture");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Index.PictureGallery", b =>
@@ -892,7 +894,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PictureGalleries");
+                    b.ToTable("Ind.PictureGallery");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Index.Post", b =>
@@ -941,7 +943,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Posts");
+                    b.ToTable("Ind.Post");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Index.Schedule", b =>
@@ -966,7 +968,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("Schedules");
+                    b.ToTable("Ind.Schedule");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.InsTitute", b =>
@@ -1016,7 +1018,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("TituteCode");
 
-                    b.ToTable("InsTitutes");
+                    b.ToTable("sm.insTitute");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Insurance", b =>
@@ -1031,7 +1033,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Insurances");
+                    b.ToTable("sm.InsuranceTable");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Item", b =>
@@ -1371,7 +1373,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("ParentId");
 
-                    b.ToTable("OrgCharts");
+                    b.ToTable("sm.OrgChart");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.OrgPerson", b =>
@@ -1457,7 +1459,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("SalaryId");
 
-                    b.ToTable("OrgPeople");
+                    b.ToTable("sm.OrgPerson");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Product", b =>
@@ -1596,7 +1598,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("GradeId");
 
-                    b.ToTable("Questions");
+                    b.ToTable("sm.Questions");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.QuestionOption", b =>
@@ -1621,7 +1623,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("QuestionId");
 
-                    b.ToTable("QuestionOptions");
+                    b.ToTable("sm.QuestionOptions");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Role", b =>
@@ -2388,7 +2390,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Salaries");
+                    b.ToTable("sm.Salary");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.ScoreThemplate", b =>
@@ -2482,7 +2484,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("YeareducationId");
 
-                    b.ToTable("StdClassMngs");
+                    b.ToTable("sm.StdClassMng");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Student", b =>
@@ -2538,7 +2540,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Students");
+                    b.ToTable("sm.Student");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.StudentDailySchedule", b =>
@@ -2654,7 +2656,7 @@ namespace SCMR_Api.Migrations
                     b.HasIndex("StudentId")
                         .IsUnique();
 
-                    b.ToTable("StudentInfos");
+                    b.ToTable("sm.StudentInfo");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.StudentScore", b =>
@@ -2752,7 +2754,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("OrgPersonId");
 
-                    b.ToTable("Teachers");
+                    b.ToTable("sm.Teacher");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Ticket", b =>
@@ -2783,7 +2785,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Tickets");
+                    b.ToTable("sm.Ticket");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.TicketConversation", b =>
@@ -2810,7 +2812,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("TicketId");
 
-                    b.ToTable("TicketConversations");
+                    b.ToTable("sm.TicketConversation");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.TimeSchedule", b =>
@@ -2850,7 +2852,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasIndex("TimeandDaysId");
 
-                    b.ToTable("TimeSchedules");
+                    b.ToTable("sm.TimeSchedule");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.TimeandDays", b =>
@@ -2886,7 +2888,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TimeandDays");
+                    b.ToTable("sm.TimeandDays");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Unit", b =>
@@ -2946,10 +2948,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2020, 10, 27, 22, 41, 58, 212, DateTimeKind.Local).AddTicks(7164),
+                            DateAdd = new DateTime(2020, 10, 27, 22, 28, 43, 378, DateTimeKind.Local).AddTicks(4848),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("5ad5bf14-28a3-4d4d-b0b1-3e7cc5c49363"),
+                            GId = new Guid("44bd5e2a-e419-4312-abc8-5cdbd6ab6966"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",
@@ -3112,7 +3114,7 @@ namespace SCMR_Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Yeareducations");
+                    b.ToTable("sm.Yeareducation");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Attribute", b =>

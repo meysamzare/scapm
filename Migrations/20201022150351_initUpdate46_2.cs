@@ -107,10 +107,10 @@ namespace SCMR_Api.Migrations
                 name: "DescriptiveScoreId",
                 table: "sm.ExamScore");
 
-            migrationBuilder.RenameTable(
-                name: "sm.Salary",
-                schema: "tahaschi_meysam",
-                newName: "sm.Salary");
+            // migrationBuilder.RenameTable(
+            //     name: "sm.Salary",
+            //     schema: "tahaschi_meysam",
+            //     newName: "sm.Salary");
 
             migrationBuilder.AlterColumn<int>(
                 name: "UnitId",

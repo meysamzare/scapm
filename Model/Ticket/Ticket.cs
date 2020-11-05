@@ -4,7 +4,6 @@ using System.Linq;
 
 namespace SCMR_Api.Model
 {
-    [Table("sm.Ticket")]
     public class Ticket
     {
         public Ticket() { }

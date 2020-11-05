@@ -19,9 +19,13 @@ namespace SCMR_Api
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+        public Startup(IHostingEnvironment environment)
         {
-            Configuration = configuration;
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(environment.ContentRootPath)
+                .AddJsonFile("appsettings.json");
+
+            Configuration = builder.Build();
         }
 
         public IConfiguration Configuration { get; }
@@ -121,12 +125,10 @@ namespace SCMR_Api
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseStaticFiles();
-
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider(
-                Path.Combine(Directory.GetCurrentDirectory(), "UploadFiles")),
+                Path.Combine(env.ContentRootPath, "UploadFiles")),
                 RequestPath = "/UploadFiles"
             });
 
@@ -135,6 +137,7 @@ namespace SCMR_Api
             using (var serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())
             {
                 var context = serviceScope.ServiceProvider.GetRequiredService<Data.DbContext>();
+                context.Database.SetCommandTimeout(3000);
                 context.Database.Migrate();
             }
 
@@ -142,16 +145,16 @@ namespace SCMR_Api
 
             app.UseCors(builder =>
             {
-                // builder.AllowAnyHeader()
-                //     .AllowAnyMethod().AllowCredentials().SetIsOriginAllowed(c => true);
+                builder.AllowAnyHeader()
+                    .AllowAnyMethod().AllowCredentials().SetIsOriginAllowed(c => true);
 
-                var validSites = Configuration["Sites:ValidSites"].Split(",");
+                // var validSites = Configuration["Sites:ValidSites"].Split(",");
 
-                foreach (var site in validSites)
-                {
-                    builder.WithOrigins(site)
-                        .AllowAnyHeader().AllowAnyMethod().AllowCredentials();
-                }
+                // foreach (var site in validSites)
+                // {
+                //     builder.WithOrigins(site)
+                //         .AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+                // }
             });
 
             app.UseSignalR(routes =>

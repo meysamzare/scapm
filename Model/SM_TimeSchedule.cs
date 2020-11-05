@@ -4,7 +4,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SCMR_Api.Model
 {
-    [Table("sm.TimeSchedule")]
     public class TimeSchedule
     {
         public TimeSchedule()

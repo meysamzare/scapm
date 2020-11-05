@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace SCMR_Api.Model.Index
 {
-	[Table("Ind.MainSlideShow")]
 	public class MainSlideShow
 	{
 		public MainSlideShow()

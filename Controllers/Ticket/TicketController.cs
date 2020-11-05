@@ -487,10 +487,18 @@ namespace SCMR_Api.Controllers
             {
                 foreach (var id in ids)
                 {
-                    var ticket = await db.Tickets.FirstOrDefaultAsync(c => c.Id == id);
+                    var ticket = await db.Tickets.Include(c => c.TicketConversations).FirstOrDefaultAsync(c => c.Id == id);
 
-                    ticket.IsRemoved = true;
-                    ticket.State = TicketState.Close;
+                    if (ticket.IsRemoved == true)
+                    {
+                        db.RemoveRange(ticket.TicketConversations);
+                        db.Remove(ticket);
+                    }
+                    else
+                    {
+                        ticket.IsRemoved = true;
+                        ticket.State = TicketState.Close;
+                    }
                 }
 
                 await db.SaveChangesAsync();

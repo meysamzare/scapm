@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SCMR_Api.Model.Financial
 {
-    [Table("Fin.StdPayment")]
 	public class StdPayment
 	{
 		public StdPayment()

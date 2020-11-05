@@ -1,22 +1,18 @@
-namespace SCMR_Api.Model
+public class DescriptiveScore
 {
-
-    public class DescriptiveScore
-    {
-        public DescriptiveScore() { }
+    public DescriptiveScore() { }
 
 
-        public int Id { get; set; }
+    public int Id { get; set; }
 
-        public string Name { get; set; }
+    public string Name { get; set; }
 
-        public string EnName { get; set; }
+    public string EnName { get; set; }
 
-        public double FromNumber { get; set; }
-        public double ToNumber { get; set; }
+    public double FromNumber { get; set; }
+    public double ToNumber { get; set; }
 
 
 
-        public double Avg => (FromNumber + ToNumber) / 2;
-    }
+    public double Avg => (FromNumber + ToNumber) / 2;
 }

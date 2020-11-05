@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SCMR_Api.Model.Index
 {
-    [Table("Ind.Schedule")]
 	public class Schedule
 	{
 		public Schedule()

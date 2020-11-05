@@ -5,13 +5,9 @@ using System.Linq;
 
 namespace SCMR_Api.Model
 {
-    [Table("sm.Course")]
     public class Course
     {
-        public Course()
-        {
-
-        }
+        public Course() { }
 
 
         [Key]

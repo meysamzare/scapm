@@ -122,7 +122,6 @@ namespace SCMR_Api
             IConfigurationRoot Configuration;
 
             var bilder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json");
 
             Configuration = bilder.Build();
@@ -142,7 +141,6 @@ namespace SCMR_Api
             IConfigurationRoot Configuration;
 
             var bilder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json");
 
             Configuration = bilder.Build();

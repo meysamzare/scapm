@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SCMR_Api.Model.Index
 {
-    [Table("Ind.Advertising")]
     public class Advertising
     {
         public Advertising()

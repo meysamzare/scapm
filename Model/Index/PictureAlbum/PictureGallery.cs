@@ -5,7 +5,6 @@ using System.Linq;
 
 namespace SCMR_Api.Model.Index
 {
-    [Table("Ind.PictureGallery")]
     public class PictureGallery
     {
         public PictureGallery() { }

@@ -4,7 +4,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SCMR_Api.Model
 {
-    [Table("sm.Questions")]
     public class Question
     {
         public Question() { }

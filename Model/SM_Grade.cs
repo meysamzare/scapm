@@ -5,7 +5,6 @@ using System.Linq;
 
 namespace SCMR_Api.Model
 {
-    [Table("sm.Grade")]
     public class Grade
     {
         public Grade() { }

@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace SCMR_Api.Model.Financial
 {
-	[Table("Fin.Contract")]
 	public class Contract
 	{
 		public Contract()

@@ -6,7 +6,6 @@ using System.Linq;
 
 namespace SCMR_Api.Model
 {
-    [Table("sm.OnlineExam")]
     public class OnlineExam
     {
         public OnlineExam() { }

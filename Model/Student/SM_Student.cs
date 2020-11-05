@@ -7,7 +7,6 @@ using SCMR_Api.Model.Financial;
 
 namespace SCMR_Api.Model
 {
-    [Table("sm.Student")]
     public class Student
     {
         public Student()

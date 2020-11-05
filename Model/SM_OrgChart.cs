@@ -5,7 +5,6 @@ using System.Linq;
 
 namespace SCMR_Api.Model
 {
-    [Table("sm.OrgChart")]
     public class OrgChart
     {
         public OrgChart()

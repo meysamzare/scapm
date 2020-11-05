@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace SCMR_Api.Model.Financial
 {
-	[Table("Fin.PaymentType")]
     public class PaymentType
     {
         public PaymentType()

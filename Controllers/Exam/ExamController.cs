@@ -660,7 +660,8 @@ namespace SCMR_Api.Controllers
                             canShowByWorkBook = c.canShowByWorkBook(c.Workbook),
                             WorkbookId = c.WorkbookId,
                             TopScore = double.Parse(c.TopScore.ToString()),
-                            isOnlineExam = false
+                            isOnlineExam = false,
+                            Result = c.Result
                         })
                 .ToListAsync();
 
@@ -687,12 +688,13 @@ namespace SCMR_Api.Controllers
                         c.HardQuestionNumber,
                         c.ModerateQuestionNumber,
                         c.EasyQuestionNumber),
-                    isOnlineExam = true
+                    isOnlineExam = true,
+                    Result = true
                 }));
 
                 ex = ex.OrderByDescending(c => c.Date).ToList();
 
-                return this.DataFunction(true, exams);
+                return this.DataFunction(true, ex);
             }
             catch (System.Exception e)
             {
