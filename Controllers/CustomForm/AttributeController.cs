@@ -679,26 +679,31 @@ namespace SCMR_Api.Controllers
 
         public async Task<IEnumerable<Model.Attribute>> getAttrForCat(int cat1)
         {
-            var cat = await db.Categories
-                .Include(c => c.Attributes)
-                    .ThenInclude(c => c.AttributeOptions)
-                .Include(c => c.Attributes)
-                    .ThenInclude(c => c.Question)
-                        .ThenInclude(c => c.QuestionOptions)
-                .Include(c => c.ParentCategory)
-            .SingleAsync(c => c.Id == cat1);
-            if (cat.Attributes.Count != 0)
+            if (cat1 != 0)
             {
-                foreach (var i in cat.Attributes)
-                {
-                    attrList.Add(i);
-                }
+                var cat = await db.Categories
+                    .Include(c => c.Attributes)
+                        .ThenInclude(c => c.AttributeOptions)
+                    .Include(c => c.Attributes)
+                        .ThenInclude(c => c.Question)
+                            .ThenInclude(c => c.QuestionOptions)
+                    .Include(c => c.ParentCategory)
+                .FirstOrDefaultAsync(c => c.Id == cat1);
 
-                if (cat.ParentCategory != null)
+                if (cat.Attributes.Count != 0)
                 {
-                    await getAttrForCat(cat.ParentCategory.Id);
+                    foreach (var i in cat.Attributes)
+                    {
+                        attrList.Add(i);
+                    }
+
+                    if (cat.ParentCategory != null)
+                    {
+                        await getAttrForCat(cat.ParentCategory.Id);
+                    }
                 }
             }
+
 
             return attrList;
         }

@@ -492,6 +492,13 @@ namespace SCMR_Api.Controllers
                     .OrderBy(c => Guid.NewGuid())
                 .ToListAsync();
 
+                if (param.veryHardQuestionNumber.HasValue && param.veryHardQuestionNumber.Value > 0)
+                {
+                    var qus = questions.Where(c => c.Defact == QueDefact.VeryHard).Take(param.veryHardQuestionNumber.Value).ToList();
+
+                    qus.ForEach(q => questionIds.Add(q.Id));
+                }
+
                 if (param.hardQuestionNumber.HasValue && param.hardQuestionNumber.Value > 0)
                 {
                     var qus = questions.Where(c => c.Defact == QueDefact.Hard).Take(param.hardQuestionNumber.Value).ToList();
@@ -1097,6 +1104,7 @@ namespace SCMR_Api.Controllers
     {
         public int catId { get; set; }
         public int selectedCourseForQuestion { get; set; }
+        public int? veryHardQuestionNumber { get; set; }
         public int? hardQuestionNumber { get; set; }
         public int? mediumQuestionNumber { get; set; }
         public int? easyQuestionNumber { get; set; }
