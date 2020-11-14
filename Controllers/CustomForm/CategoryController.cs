@@ -248,7 +248,11 @@ namespace SCMR_Api.Controllers
 
                     if (!string.IsNullOrEmpty(cat.RegisterPicUrl))
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + cat.RegisterPicUrl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + cat.RegisterPicUrl);
+                        }
+                        catch { }
                     }
 
                     var guid = System.Guid.NewGuid().ToString();
@@ -267,7 +271,11 @@ namespace SCMR_Api.Controllers
 
                     if (!string.IsNullOrEmpty(cat.ShowInfoPicUrl))
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + cat.ShowInfoPicUrl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + cat.ShowInfoPicUrl);
+                        }
+                        catch { }
                     }
 
                     var guid = System.Guid.NewGuid().ToString();
@@ -286,7 +294,11 @@ namespace SCMR_Api.Controllers
 
                     if (!string.IsNullOrEmpty(cat.HeaderPicUrl))
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + cat.HeaderPicUrl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + cat.HeaderPicUrl);
+                        }
+                        catch { }
                     }
 
                     var guid = System.Guid.NewGuid().ToString();
@@ -605,6 +617,8 @@ namespace SCMR_Api.Controllers
                     .Include(c => c.Items)
                         .ThenInclude(c => c.ItemAttribute)
                             .ThenInclude(c => c.Attribute)
+                                .ThenInclude(m => m.Question)
+                                    .ThenInclude(m => m.QuestionOptions)
                 .FirstOrDefaultAsync(c => c.Id == catId);
 
                 if (cat.Type != CategoryTotalType.onlineExam)
@@ -667,7 +681,23 @@ namespace SCMR_Api.Controllers
                     }
                 });
 
-                await db.SaveChangesAsync();
+                // cat.TopScore = cat.CalculateNegativeScore ? 20 : cat.getTotalScore(cat.Attributes.ToList(),
+                //                         cat.UseLimitedRandomQuestionNumber,
+                //                         cat.VeryHardQuestionNumber,
+                //                         cat.HardQuestionNumber,
+                //                         cat.ModerateQuestionNumber,
+                //                         cat.EasyQuestionNumber);
+
+                // await db.SaveChangesAsync();
+
+
+                // foreach (var item in cat.Items)
+                // {
+                //     var dbItem = await db.Items.FirstOrDefaultAsync(c => c.Id == item.Id);
+
+                //     dbItem.Score = item.getTotalScoreFunction(item.ItemAttribute, cat.CalculateNegativeScore);
+                //     dbItem.MeliCode =
+                // }
 
                 return this.SuccessFunction();
             }
@@ -941,6 +971,13 @@ namespace SCMR_Api.Controllers
                 var catList = await db.Categories
                     .Where(c => c.Type == CategoryTotalType.onlineExam && !c.IsArchived)
                     .Where(c => DateTime.Now >= c.DatePublish && DateTime.Now <= c.DateExpire && c.IsActive == true)
+                .Select(c => new
+                {
+                    Id = c.Id,
+                    Title = c.Title,
+                    registerPicUrl = string.IsNullOrEmpty(c.RegisterPicUrl) ? c.HeaderPicUrl : c.RegisterPicUrl,
+                    showInfoPicUrl = string.IsNullOrEmpty(c.ShowInfoPicUrl) ? c.HeaderPicUrl : c.ShowInfoPicUrl,
+                })
                 .ToListAsync();
 
                 return this.SuccessFunction(data: catList);

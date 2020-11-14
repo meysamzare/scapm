@@ -119,7 +119,11 @@ namespace SCMR_Api.Controllers
                 {
                     if (!string.IsNullOrEmpty(student.PicUrl))
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + student.PicUrl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + student.PicUrl);
+                        }
+                        catch { }
                     }
 
                     var guid = System.Guid.NewGuid().ToString();
@@ -749,6 +753,18 @@ namespace SCMR_Api.Controllers
                         if (st.StdClassMngs.Any())
                         {
                             return this.UnSuccessFunction("این دانش آموز دارای لیست ثبت نامی است، نمیتوان آن را حذف کرد");
+                        }
+
+
+                        var picurl = st.PicUrl;
+
+                        if (!string.IsNullOrEmpty(picurl))
+                        {
+                            try
+                            {
+                                System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                            }
+                            catch { }
                         }
 
                         db.Students.Remove(st);

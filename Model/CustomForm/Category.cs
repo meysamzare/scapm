@@ -99,6 +99,9 @@ namespace SCMR_Api.Model
         public bool IsArchived { get; set; }
 
 
+        // public double TopScore { get; set; }
+
+
 
         #region Relations
 

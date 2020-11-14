@@ -364,17 +364,43 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-
                 if (itemId != 0)
                 {
-                    var it = await db.Items.SingleAsync(c => c.Id == itemId);
+                    var item = await db.Items.FirstOrDefaultAsync(c => c.Id == itemId);
 
-                    Categories = await db.Categories.Include(c => c.ParentCategory).Include(c => c.Attributes)
-                                            .ToListAsync();
+                    Categories = await db.Categories
+                        .Include(c => c.Attributes)
+                            .ThenInclude(c => c.AttributeOptions)
+                        .Include(c => c.Attributes)
+                            .ThenInclude(c => c.Question)
+                                .ThenInclude(c => c.QuestionOptions)
+                        .Include(c => c.ParentCategory)
+                    .ToListAsync();
 
-                    var attrs = await getAttrForCat(it.CategoryId);
+                    var attrs = await getAttrForCat(item.CategoryId);
 
-                    return this.DataFunction(true, attrs.Where(c => c.IsInShowInfo == true).OrderBy(c => c.OrderInInfo).ThenBy(c => c.Id));
+                    var attributes = attrs
+                        .Where(c => c.IsInShowInfo).OrderBy(c => c.OrderInInfo).ThenBy(c => c.Id)
+                    .Select(c => new RegisterItemAttrs
+                    {
+                        Id = c.Id,
+                        AttrTypeInt = c.AttrTypeToInt(c.AttrType),
+                        UnitId = c.UnitId,
+                        IsRequired = c.IsRequired,
+                        IsUniq = c.IsUniq,
+                        Title = c.AttrType == AttrType.Question ? c.Question.Title : c.Title,
+                        Placeholder = c.Placeholder,
+                        Desc = c.Desc,
+                        Values = c.Values,
+                        MaxFileSize = c.MaxFileSize,
+                        IsMeliCode = c.IsMeliCode,
+                        AttributeOptions = c.getAttributeOptions(false, c.AttrType, c.AttributeOptions, c.Question == null || c.Question.QuestionOptions == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
+                        QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
+                        QuestionDefct = c.Question != null ? c.Question.Defact : 0,
+                        ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent
+                    });
+
+                    return this.DataFunction(true, attributes);
                 }
                 else
                 {
@@ -533,7 +559,11 @@ namespace SCMR_Api.Controllers
                             {
                                 if (!string.IsNullOrEmpty(itemAttr.AttrubuteValue))
                                 {
-                                    System.IO.File.Delete(itemAttr.AttrubuteValue);
+                                    try
+                                    {
+                                        System.IO.File.Delete(itemAttr.AttrubuteValue);
+                                    }
+                                    catch { }
                                 }
                             }
                         }
@@ -787,8 +817,11 @@ namespace SCMR_Api.Controllers
                     var ia = await db.ItemAttributes.SingleAsync(c => c.AttributeId == attrid && c.ItemId == itemid);
 
                     //Remove Old File And Save New File
-
-                    System.IO.File.Delete(ia.AttrubuteValue);
+                    try
+                    {
+                        System.IO.File.Delete(ia.AttrubuteValue);
+                    }
+                    catch { }
 
                     var guid = System.Guid.NewGuid().ToString();
                     Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
@@ -861,8 +894,11 @@ namespace SCMR_Api.Controllers
             try
             {
                 var ia = await db.ItemAttributes.SingleAsync(c => c.AttributeId == param.attrId && c.ItemId == param.itemId);
-
-                System.IO.File.Delete(ia.AttrubuteValue);
+                try
+                {
+                    System.IO.File.Delete(ia.AttrubuteValue);
+                }
+                catch { }
 
                 db.ItemAttributes.Remove(ia);
 
@@ -898,8 +934,11 @@ namespace SCMR_Api.Controllers
                         {
 
                             var ia = await db.ItemAttributes.SingleAsync(c => c.AttributeId == attrid && c.ItemId == itemid);
-
-                            System.IO.File.Delete(ia.AttrubuteValue);
+                            try
+                            {
+                                System.IO.File.Delete(ia.AttrubuteValue);
+                            }
+                            catch { }
 
                             db.ItemAttributes.Remove(ia);
 
@@ -911,8 +950,11 @@ namespace SCMR_Api.Controllers
                             var ia = await db.ItemAttributes.SingleAsync(c => c.AttributeId == attrid && c.ItemId == itemid);
 
                             //Remove Old File And Save New File
-
-                            System.IO.File.Delete(ia.AttrubuteValue);
+                            try
+                            {
+                                System.IO.File.Delete(ia.AttrubuteValue);
+                            }
+                            catch { }
 
                             var guid = System.Guid.NewGuid().ToString();
 
@@ -1121,12 +1163,6 @@ namespace SCMR_Api.Controllers
                     AuthorizedFullName = itemWithAttrs.authorizedFullName
                 };
 
-                db.Items.Add(item);
-
-                await db.SaveChangesAsync();
-
-                var itemid = item.Id;
-
                 var itemAttrs = new List<ItemAttribute>();
 
                 foreach (var itemAttr in itemWithAttrs.itemAttrs)
@@ -1163,9 +1199,9 @@ namespace SCMR_Api.Controllers
                                 Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
 
                                 byte[] bytes = Convert.FromBase64String(itemAttr.AttrubuteValue);
-                                System.IO.File.WriteAllBytes(path, bytes);
+                                await System.IO.File.WriteAllBytesAsync(path, bytes);
 
-                                filepath = Path.Combine("/UploadFiles/" + guid + "/" + itemAttr.FileName);
+                                filepath = Path.Combine("/UploadFiles", guid, itemAttr.FileName);
 
                                 itemAttr.AttrubuteValue = path;
                             }
@@ -1174,32 +1210,34 @@ namespace SCMR_Api.Controllers
 
                     itemAttrs.Add(new ItemAttribute
                     {
-                        ItemId = itemid,
                         AttributeId = itemAttr.AttributeId,
                         AttrubuteValue = itemAttr.AttrubuteValue,
                         AttributeFilePath = filepath
                     });
                 }
 
-                await db.ItemAttributes.AddRangeAsync(itemAttrs);
+                item.ItemAttribute = itemAttrs;
 
-                Random random = new System.Random();
-                int value = random.Next(1111111, 99999999);
+                var rahCode = new System.Random().Next(1111111, 99999999);
 
-                item.RahCode = value;
+                item.RahCode = rahCode;
+
+                await db.Items.AddAsync(item);
 
                 await db.SaveChangesAsync();
 
+                var itemId = item.Id;
+
                 var cat = await db.Categories
                     .Include(c => c.Attributes)
-                .SingleAsync(c => c.Id == itemWithAttrs.catId);
+                .FirstOrDefaultAsync(c => c.Id == itemWithAttrs.catId);
 
                 var itemIncluded = await db.Items
                     .Include(c => c.ItemAttribute)
                         .ThenInclude(c => c.Attribute)
                             .ThenInclude(c => c.Question)
                                 .ThenInclude(c => c.QuestionOptions)
-                .SingleAsync(c => c.Id == itemid);
+                .FirstOrDefaultAsync(c => c.Id == itemId);
 
                 var catTotalScore = cat.getTotalScore(
                     cat.Attributes.ToList(),
@@ -1213,7 +1251,7 @@ namespace SCMR_Api.Controllers
 
                 var scoreString = cat.ShowScoreAfterDone && cat.Type == CategoryTotalType.onlineExam ? $"\n نمره فعلی شما: {itemScore} از {catTotalScore} \n" : "";
 
-                return this.CustomFunction(true, cat.EndMessage + scoreString, value.ToString(), null);
+                return this.CustomFunction(true, cat.EndMessage + scoreString, rahCode.ToString(), null);
             }
             catch (System.Exception e)
             {

@@ -70,7 +70,11 @@ namespace SCMR_Api.Controllers
                 {
                     if (!string.IsNullOrEmpty(cont.FileUrl))
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + cont.FileUrl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + cont.FileUrl);
+                        }
+                        catch { }
                     }
 
                     var guid = System.Guid.NewGuid().ToString();
@@ -119,7 +123,11 @@ namespace SCMR_Api.Controllers
 
                 if (!string.IsNullOrEmpty(cont.FileUrl))
                 {
-                    System.IO.File.Delete(hostingEnvironment.ContentRootPath + cont.FileUrl);
+                    try
+                    {
+                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + cont.FileUrl);
+                    }
+                    catch { }
 
                     cont.FileUrl = "";
 

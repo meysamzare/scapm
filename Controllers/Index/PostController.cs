@@ -79,7 +79,11 @@ namespace SCMR_Api.Controllers
                 {
                     if (!string.IsNullOrEmpty(po.HeaderPicUrl))
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + po.HeaderPicUrl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + po.HeaderPicUrl);
+                        }
+                        catch { }
                     }
 
                     var guid = System.Guid.NewGuid().ToString();
@@ -657,6 +661,18 @@ namespace SCMR_Api.Controllers
                         if (sl.haveSchedules)
                         {
                             return this.UnSuccessFunction(" پست " + sl.Name + " دارای رویداد هایی است", "error");
+                        }
+
+                        
+                        var picurl = sl.HeaderPicUrl;
+
+                        if (!string.IsNullOrEmpty(picurl))
+                        {
+                            try
+                            {
+                                System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                            }
+                            catch { }
                         }
 
                         db.Posts.Remove(sl);

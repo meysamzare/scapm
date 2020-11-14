@@ -543,6 +543,7 @@ namespace SCMR_Api.Controllers
                     questionDefact = c.Question != null ? c.Question.getDefctString(c.Question.Defact) : "",
                     questionPerson = c.Question != null ? c.Question.Person : "",
                     questionTypeString = c.Question != null ? c.Question.getTypeString(c.Question.Type) : "",
+                    questionName = c.Question != null ? c.Question.Name : ""
                 })
                 .OrderBy(c => c.Order).ThenBy(c => c.QuestionId).ThenBy(c => c.Id)
                 .ToList();

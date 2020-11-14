@@ -70,7 +70,11 @@ namespace SCMR_Api.Controllers
                 {
                     if (!string.IsNullOrEmpty(picurl))
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                        }
+                        catch { }
                     }
 
                     var guid = System.Guid.NewGuid().ToString();
@@ -403,7 +407,11 @@ namespace SCMR_Api.Controllers
 
                         if (!string.IsNullOrEmpty(picurl))
                         {
-                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                            try
+                            {
+                                System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                            }
+                            catch { }
                         }
 
                         db.Products.Remove(sl);

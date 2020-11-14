@@ -117,7 +117,11 @@ namespace SCMR_Api.Controllers
 
                     if (!string.IsNullOrEmpty(picurl) && !param.HaveExternalUrl)
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                        }
+                        catch { }
                     }
                 }
 
@@ -282,7 +286,11 @@ namespace SCMR_Api.Controllers
 
                     if (!string.IsNullOrEmpty(picurl))
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                        }
+                        catch { }
                     }
 
                     db.Links.Remove(sl);

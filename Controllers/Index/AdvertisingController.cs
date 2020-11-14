@@ -71,7 +71,11 @@ namespace SCMR_Api.Controllers
                 {
                     if (!string.IsNullOrEmpty(ad.PicUrl))
                     {
-                        System.IO.File.Delete(hostingEnvironment.ContentRootPath + ad.PicUrl);
+                        try
+                        {
+                            System.IO.File.Delete(hostingEnvironment.ContentRootPath + ad.PicUrl);
+                        }
+                        catch { }
                     }
 
                     var guid = System.Guid.NewGuid().ToString();
@@ -278,6 +282,18 @@ namespace SCMR_Api.Controllers
                         if (sl == null)
                         {
                             return this.UnSuccessFunction("Data Not Found", "error");
+                        }
+
+                        
+                        var picurl = sl.PicUrl;
+
+                        if (!string.IsNullOrEmpty(picurl))
+                        {
+                            try
+                            {
+                                System.IO.File.Delete(hostingEnvironment.ContentRootPath + picurl);
+                            }
+                            catch { }
                         }
 
                         db.Advertisings.Remove(sl);
