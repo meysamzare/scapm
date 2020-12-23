@@ -68,7 +68,9 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var unitList = await db.Units.Select(c => new { id = c.Id, title = c.Title }).ToListAsync();
+                var unitList = await db.Units
+                    .OrderBy(c => c.Order).ThenBy(c => c.Id)
+                .Select(c => new { id = c.Id, title = c.Title }).ToListAsync();
 
                 return this.DataFunction(true, unitList);
             }

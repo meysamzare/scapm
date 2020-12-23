@@ -352,6 +352,11 @@ namespace SCMR_Api.Model
         public bool Remove_OnlineClass { get; set; }
         public bool View_OnlineClass { get; set; }
 
+        public bool Add_DescriptiveScore { get; set; }
+        public bool Edit_DescriptiveScore { get; set; }
+        public bool Remove_DescriptiveScore { get; set; }
+        public bool View_DescriptiveScore { get; set; }
+
 
         public bool View_StudentDailySchedule { get; set; }
 

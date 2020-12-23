@@ -30,12 +30,12 @@ namespace SCMR_Api.Model
         public CategoryAuthorizeState AuthorizedType { get; set; }
 
 
-        // public string MeliCode { get; set; }
-
-        // public double Score { get; set; }
-        // public int BlankCount { get; set; }
-        // public int TrueCount { get; set; }
-        // public int FalseCount { get; set; }
+        public string MeliCode { get; set; }
+        public double Score { get; set; }
+        
+        public int BlankCount { get; set; }
+        public int TrueCount { get; set; }
+        public int FalseCount { get; set; }
 
 
         public int? UnitId { get; set; }

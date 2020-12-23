@@ -523,6 +523,7 @@ namespace SCMR_Api.Controllers
                     Id = c.Id,
                     AttrTypeInt = c.AttrTypeToInt(c.AttrType),
                     UnitId = c.UnitId,
+                    UnitOrder = c.Unit.Order,
                     Title = c.AttrType == AttrType.Question ? c.Question.Title : c.Title,
                     Placeholder = c.Placeholder,
                     Desc = c.Desc,
@@ -545,7 +546,8 @@ namespace SCMR_Api.Controllers
                     questionTypeString = c.Question != null ? c.Question.getTypeString(c.Question.Type) : "",
                     questionName = c.Question != null ? c.Question.Name : ""
                 })
-                .OrderBy(c => c.Order).ThenBy(c => c.QuestionId).ThenBy(c => c.Id)
+                .OrderBy(c => c.UnitOrder).ThenBy(c => c.UnitId)
+                    .ThenBy(c => c.Order).ThenBy(c => c.QuestionId).ThenBy(c => c.Id)
                 .ToList();
 
                 return this.DataFunction(true, attr);
@@ -570,6 +572,8 @@ namespace SCMR_Api.Controllers
                     Id = c.Id,
                     AttrTypeInt = c.AttrTypeToInt(c.AttrType),
                     UnitId = c.UnitId,
+                    UnitOrder = c.Unit.Order,
+                    Order = c.Order,
                     IsRequired = c.IsRequired,
                     IsUniq = c.IsUniq,
                     Title = c.AttrType == AttrType.Question ? c.Question.Title : c.Title,
@@ -584,6 +588,8 @@ namespace SCMR_Api.Controllers
                     QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
                     ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent
                 })
+                .OrderBy(c => c.UnitOrder).ThenBy(c => c.UnitId)
+                    .ThenBy(c => c.Order).ThenBy(c => c.QuestionId).ThenBy(c => c.Id)
                 .ToList();
 
                 return this.DataFunction(true, attr);
@@ -607,14 +613,13 @@ namespace SCMR_Api.Controllers
 
                 var attrListSelected = attrlist
                     .Where(c => c.IsInClient == true)
-                        .OrderBy(c => c.UnitId)
-                            .ThenBy(c => c.QuestionId)
-                                .ThenBy(c => c.Order)
                 .Select(c => new RegisterItemAttrs
                 {
                     Id = c.Id,
                     AttrTypeInt = c.AttrTypeToInt(c.AttrType),
                     UnitId = c.UnitId,
+                    UnitOrder = c.Unit.Order,
+                    Order = c.Order,
                     IsRequired = c.IsRequired,
                     IsUniq = c.IsUniq,
                     Title = c.AttrType == AttrType.Question ? c.Question.Title : c.Title,
@@ -624,10 +629,13 @@ namespace SCMR_Api.Controllers
                     MaxFileSize = c.MaxFileSize,
                     IsMeliCode = c.IsMeliCode,
                     AttributeOptions = c.getAttributeOptions(false, c.AttrType, c.AttributeOptions, c.Question == null || c.Question.QuestionOptions == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
+                    QuestionId = c.QuestionId,
                     QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
                     QuestionDefct = c.Question != null ? c.Question.Defact : 0,
                     ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent
                 })
+                .OrderBy(c => c.UnitOrder).ThenBy(c => c.UnitId)
+                    .ThenBy(c => c.Order).ThenBy(c => c.QuestionId).ThenBy(c => c.Id)
                 .ToList();
 
                 if (cat.UseLimitedRandomQuestionNumber && cat.Type == CategoryTotalType.onlineExam)
@@ -685,6 +693,8 @@ namespace SCMR_Api.Controllers
                 var cat = await db.Categories
                     .Include(c => c.Attributes)
                         .ThenInclude(c => c.AttributeOptions)
+                    .Include(c => c.Attributes)
+                        .ThenInclude(c => c.Unit)
                     .Include(c => c.Attributes)
                         .ThenInclude(c => c.Question)
                             .ThenInclude(c => c.QuestionOptions)
@@ -821,6 +831,8 @@ namespace SCMR_Api.Controllers
         public int Id { get; set; }
         public int AttrTypeInt { get; set; }
         public int UnitId { get; set; }
+        public int UnitOrder { get; set; }
+        public int Order { get; set; }
         public bool IsRequired { get; set; }
         public bool IsUniq { get; set; }
         public string Title { get; set; }
@@ -830,6 +842,7 @@ namespace SCMR_Api.Controllers
         public int MaxFileSize { get; set; }
         public bool IsMeliCode { get; set; }
         public List<AttributeOption> AttributeOptions { get; set; }
+        public int? QuestionId { get; set; }
         public int QuestionType { get; set; }
         public QueDefact QuestionDefct { get; set; }
         public string ComplatabelContent { get; set; }

@@ -42,7 +42,7 @@ namespace SCMR_Api.Controllers
                     teacherName = c.Teacher.Name,
                     dateString = c.Date.ToPersianDate(),
                     Result = c.Result,
-                    yeareducationId = c.YeareducationId
+                    yeareducationId = c.Grade.YeareducationId
                 })
                 .Where(c => c.yeareducationId == nowYeareducationId);
 
@@ -80,7 +80,7 @@ namespace SCMR_Api.Controllers
                     teacherName = c.Teacher.Name,
                     dateString = c.Date.ToPersianDate(),
                     Result = c.Result,
-                    yeareducationId = c.YeareducationId
+                    yeareducationId = c.Grade.YeareducationId
                 })
                 .Where(c => c.yeareducationId == nowYeareducationId);
 
@@ -118,7 +118,7 @@ namespace SCMR_Api.Controllers
                     teacherName = c.Teacher.Name,
                     dateString = c.Date.ToPersianDate(),
                     Result = c.Result,
-                    yeareducationId = c.YeareducationId
+                    yeareducationId = c.Grade.YeareducationId
                 })
                 .Where(c => c.yeareducationId == nowYeareducationId);
 
@@ -157,7 +157,7 @@ namespace SCMR_Api.Controllers
                     teacherName = c.Teacher.Name,
                     dateString = c.Date.ToPersianDate(),
                     Result = c.Result,
-                    yeareducationId = c.YeareducationId
+                    yeareducationId = c.Grade.YeareducationId
                 })
                 .Where(c => c.yeareducationId == nowYeareducationId);
 

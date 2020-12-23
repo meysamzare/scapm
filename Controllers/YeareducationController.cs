@@ -99,6 +99,7 @@ namespace SCMR_Api.Controllers
 
                 year.Name = yeareducation.name;
                 year.Desc = yeareducation.desc;
+                year.ScoreType = (YeareducationScoreType)yeareducation.scoreType;
 
 
                 year.DateStart = yeareducation.dateStart;
@@ -306,5 +307,7 @@ namespace SCMR_Api.Controllers
         public DateTime dateEnd { get; set; }
 
         public string desc { get; set; }
+
+        public int scoreType { get; set; }
     }
 }

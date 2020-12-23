@@ -83,11 +83,13 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Get([FromBody] getparams getparams)
+        public async Task<IActionResult> Get([FromBody] questionGetParam getparam)
         {
             try
             {
                 var nowYeareducationId = await this.getActiveYeareducationId();
+
+                var getparams = getparam.getparams;
 
                 getparams.pageIndex += 1;
 
@@ -109,7 +111,9 @@ namespace SCMR_Api.Controllers
                         Type = c.Type,
                         YeareducationId = c.Grade.YeareducationId,
                         Mark = c.Mark,
-
+                        GradeId = c.GradeId,
+                        CourseId = c.CourseId,
+                        Defact = c.Defact,
                     })
                     .Where(c => c.YeareducationId == nowYeareducationId)
                 .AsQueryable();
@@ -121,6 +125,21 @@ namespace SCMR_Api.Controllers
                     que = que.Where(c => c.Name.Contains(query) || c.courseName.Contains(query) ||
                                     c.gradeName.Contains(query) || c.Person.Contains(query) ||
                                     c.Title.Contains(query) || c.Mark.ToString().Contains(query));
+                }
+
+                if (getparam.selectedGrade.HasValue)
+                {
+                    que = que.Where(c => c.GradeId == getparam.selectedGrade.Value);
+                }
+
+                if (getparam.selectedCourse.HasValue)
+                {
+                    que = que.Where(c => c.CourseId == getparam.selectedCourse.Value);
+                }
+
+                if (getparam.selectedDefct.HasValue)
+                {
+                    que = que.Where(c => c.Defact == (QueDefact)getparam.selectedDefct.Value);
                 }
 
                 count = que.Count();
@@ -256,12 +275,17 @@ namespace SCMR_Api.Controllers
                     questions = questions.Where(c => c.CourseId == param.selectedCourse.Value);
                 }
 
+                if (param.selectedDefct.HasValue)
+                {
+                    questions = questions.Where(c => c.Defact == (QueDefact)param.selectedDefct.Value);
+                }
+
                 if (!string.IsNullOrEmpty(param.searchText))
                 {
-                    questions = questions.Where(c => c.Name.Contains(param.searchText) || 
-                        c.Title.Contains(param.searchText) || 
-                        c.Desc1.Contains(param.searchText) || 
-                        c.Desc1.Contains(param.searchText) || 
+                    questions = questions.Where(c => c.Name.Contains(param.searchText) ||
+                        c.Title.Contains(param.searchText) ||
+                        c.Desc1.Contains(param.searchText) ||
+                        c.Desc1.Contains(param.searchText) ||
                         c.Source.Contains(param.searchText));
                 }
 
@@ -287,7 +311,8 @@ namespace SCMR_Api.Controllers
                         }),
                         ComplatabelContent = c.ComplatabelContent,
                         Person = c.Person,
-                        DefactString = c.getDefctString(c.Defact)
+                        DefactString = c.getDefctString(c.Defact),
+                        Name = c.Name
                     })
                 .ToListAsync();
 
@@ -431,12 +456,21 @@ namespace SCMR_Api.Controllers
 
     }
 
+    public class questionGetParam
+    {
+        public getparams getparams { get; set; }
+        public int? selectedGrade { get; set; }
+        public int? selectedCourse { get; set; }
+        public int? selectedDefct { get; set; }
+    }
+
     public class getQuestionsParams
     {
         public string searchText { get; set; }
         public int page { get; set; }
         public int? selectedGrade { get; set; }
         public int? selectedCourse { get; set; }
+        public int? selectedDefct { get; set; }
     }
 
     public class QuestionAddParam

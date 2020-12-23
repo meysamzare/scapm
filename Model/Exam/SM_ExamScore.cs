@@ -23,20 +23,18 @@ namespace SCMR_Api.Model
         public int StudentId { get; set; }
 
 
+        public int? OnlineExamItemId { get; set; }
+
+
 
         [Column("Ex.Score")]
         public double Score { get; set; }
 
 
-
-        public int? DescriptiveScoreId { get; set; }
-
-
-
-        [Column("Ex.TopScore")]
+        [NotMapped]
         public int TopScore { get; set; }
 
-        [Column("Ex.AmauntQuestion")]
+        [NotMapped]
         public int NumberQ { get; set; }
 
 
@@ -59,23 +57,6 @@ namespace SCMR_Api.Model
 
         [ForeignKey("StudentId")]
         public virtual Student Student { get; set; }
-
-
-        [ForeignKey("DescriptiveScoreId")]
-        public virtual DescriptiveScore DescriptiveScore { get; set; }
-
-        public string getDescriptiveName(DescriptiveScore descriptiveScore)
-        {
-            if (descriptiveScore != null)
-            {
-                return descriptiveScore.Name;
-            }
-
-            return "";
-        }
-
-
-        public string descriptiveName => getDescriptiveName(DescriptiveScore);
 
 
         public string getRating(List<ExamScore> examScores, double score)

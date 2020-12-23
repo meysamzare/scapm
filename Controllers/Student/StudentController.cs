@@ -1062,12 +1062,21 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var exam = await db.Exams.SingleAsync(c => c.Id == examId);
+                var exam = await db.Exams.Include(c => c.Grade).SingleAsync(c => c.Id == examId);
 
-                var students = await db.StdClassMngs.Where(c => c.GradeId == exam.GradeId && c.ClassId == exam.ClassId && c.YeareducationId == exam.YeareducationId)
-                        .Select(c => c.Student)
+                var studentsClassMngs = db.StdClassMngs.Where(c => c.GradeId == exam.GradeId && c.YeareducationId == exam.Grade.YeareducationId);
+
+                if (exam.ClassId.HasValue)
+                {
+                    studentsClassMngs = studentsClassMngs.Where(c => c.ClassId == exam.ClassId.Value);
+                }
+
+                var students = await studentsClassMngs
+                .Select(c => c.Student)
                     .OrderBy(c => c.LastName).ThenBy(c => c.Name)
                 .ToListAsync();
+
+
 
                 return this.SuccessFunction(data: students);
             }

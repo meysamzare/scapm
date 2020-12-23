@@ -73,7 +73,7 @@ namespace SCMR_Api.Model
                     return true;
                 }
 
-                if (Student.ExamScores.Any(c => c.Exam.YeareducationId == YeareducationId &&
+                if (Student.ExamScores.Any(c => c.Exam.Grade.YeareducationId == YeareducationId &&
                     c.Exam.GradeId == GradeId && c.Exam.ClassId == ClassId))
                 {
                     return false;

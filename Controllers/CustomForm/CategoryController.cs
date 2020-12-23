@@ -608,11 +608,14 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> AbsenceForOnlineExam([FromBody] int catId)
+        public async Task<IActionResult> AbsenceForOnlineExam([FromBody] AbsenceForOnlineExamParam param)
         {
             try
             {
+                var catId = param.catId;
+
                 var cat = await db.Categories
+                    .Include(c => c.Course)
                     .Include(c => c.Attributes)
                     .Include(c => c.Items)
                         .ThenInclude(c => c.ItemAttribute)
@@ -630,11 +633,11 @@ namespace SCMR_Api.Controllers
 
                 if (cat.ClassId.HasValue)
                 {
-                    studentsList = await db.StdClassMngs.Where(c => c.ClassId == cat.ClassId.Value).Select(c => c.Student).ToListAsync();
+                    studentsList = await db.StdClassMngs.Where(c => c.ClassId == cat.ClassId.Value).Select(c => c.Student).Distinct().ToListAsync();
                 }
                 if (cat.GradeId.HasValue)
                 {
-                    studentsList = await db.StdClassMngs.Where(c => c.GradeId == cat.GradeId.Value).Select(c => c.Student).ToListAsync();
+                    studentsList = await db.StdClassMngs.Where(c => c.GradeId == cat.GradeId.Value).Select(c => c.Student).Distinct().ToListAsync();
                 }
 
 
@@ -674,30 +677,203 @@ namespace SCMR_Api.Controllers
                             UnitId = db.Units.First().Id,
                             RahCode = new Random().Next(11111111, 99999999),
                             Title = std.LastName + " - " + std.Name + " (غائب)",
+                            MeliCode = std.IdNumber2,
+                            Score = 0,
                             ItemAttribute = itemAttrs
                         };
 
-                        db.Items.Add(item);
+                        mustToBeAddedItems.Add(item);
                     }
                 });
 
-                // cat.TopScore = cat.CalculateNegativeScore ? 20 : cat.getTotalScore(cat.Attributes.ToList(),
-                //                         cat.UseLimitedRandomQuestionNumber,
-                //                         cat.VeryHardQuestionNumber,
-                //                         cat.HardQuestionNumber,
-                //                         cat.ModerateQuestionNumber,
-                //                         cat.EasyQuestionNumber);
+                cat.TopScore = cat.CalculateNegativeScore ? 20 : cat.getTotalScore(cat.Attributes.ToList(),
+                                        cat.UseLimitedRandomQuestionNumber,
+                                        cat.VeryHardQuestionNumber,
+                                        cat.HardQuestionNumber,
+                                        cat.ModerateQuestionNumber,
+                                        cat.EasyQuestionNumber);
 
-                // await db.SaveChangesAsync();
+                foreach (var item in cat.Items)
+                {
+                    var dbItem = await db.Items.FirstOrDefaultAsync(c => c.Id == item.Id);
+
+                    dbItem.Score = item.getTotalScoreFunction(item.ItemAttribute, cat.CalculateNegativeScore);
+                    dbItem.MeliCode = item.ItemAttribute.FirstOrDefault(c => c.Attribute.IsMeliCode).AttrubuteValue.Trim();
+
+                    dbItem.TrueCount = item.ItemAttribute.Where(c => c.getPaperState(c, c.Attribute) == ItemAttributePaperState.True).Count();
+                    dbItem.FalseCount = item.ItemAttribute.Where(c => c.getPaperState(c, c.Attribute) == ItemAttributePaperState.False).Count();
+                    dbItem.BlankCount = item.ItemAttribute.Where(c => c.getPaperState(c, c.Attribute) == ItemAttributePaperState.Blank).Count();
+                }
+
+                cat.IsStaticDataSaved = true;
+                cat.LastSavedStaticData = DateTime.Now;
+
+                await db.Items.AddRangeAsync(mustToBeAddedItems);
+
+                if (param.deleteUnknownDatas)
+                {
+                    var meliCodes = studentsList.Select(c => c.IdNumber2);
+
+                    var itemsToDelete = cat.Items.Where(c => !meliCodes.Contains(c.MeliCode));
+
+                    db.Items.RemoveRange(itemsToDelete);
+                    db.ItemAttributes.RemoveRange(itemsToDelete.SelectMany(c => c.ItemAttribute));
+                }
+
+                await db.SaveChangesAsync();
 
 
-                // foreach (var item in cat.Items)
-                // {
-                //     var dbItem = await db.Items.FirstOrDefaultAsync(c => c.Id == item.Id);
+                var pureTopScore = cat.getTotalScore(cat.Attributes.ToList(),
+                                    cat.UseLimitedRandomQuestionNumber,
+                                    cat.VeryHardQuestionNumber,
+                                    cat.HardQuestionNumber,
+                                    cat.ModerateQuestionNumber,
+                                    cat.EasyQuestionNumber);
 
-                //     dbItem.Score = item.getTotalScoreFunction(item.ItemAttribute, cat.CalculateNegativeScore);
-                //     dbItem.MeliCode =
-                // }
+                var topScore = pureTopScore;
+
+                if (param.saveScoreType == 2)
+                {
+                    topScore = 100;
+                }
+
+                if (param.saveScoreType == 3)
+                {
+                    topScore = 20;
+                }
+
+                if (!await db.Exams.AnyAsync(c => c.OnlineExamId == cat.Id))
+                {
+                    var examScores = new List<ExamScore>();
+
+                    foreach (var item in cat.Items)
+                    {
+                        var score = item.getTotalScoreFunction(item.ItemAttribute, param.saveScoreType == 2);
+
+                        if (param.saveScoreType == 2)
+                        {
+                            score = score * 5;
+                        }
+
+                        if (param.saveScoreType == 3)
+                        {
+                            score = getJustifiedScore(score, pureTopScore);
+                        }
+
+                        if (studentsList.Any(c => c.IdNumber2 == item.MeliCode))
+                        {
+                            examScores.Add(new ExamScore
+                            {
+                                StudentId = studentsList.FirstOrDefault(c => c.IdNumber2 == item.MeliCode).Id,
+                                TrueAnswer = item.TrueCount,
+                                FalseAnswer = item.FalseCount,
+                                BlankAnswer = item.BlankCount,
+                                State = item.Title.EndsWith("(غائب)") ? ExamScoreState.TrueGhaeb : ExamScoreState.Hazer,
+                                Score = score,
+                                OnlineExamItemId = item.Id
+                            });
+                        }
+                    }
+
+                    var exam = new Exam
+                    {
+                        Name = cat.Title.Trim().Replace("/", "-"),
+                        Date = cat.DatePublish.Value,
+                        NumberQ = cat.Attributes.Where(c => c.AttrType == AttrType.Question).Count(),
+                        ExamTypeId = cat.ExamTypeId,
+                        GradeId = cat.GradeId.Value,
+                        ClassId = cat.ClassId,
+                        CourseId = cat.CourseId.Value,
+                        WorkbookId = cat.WorkbookId,
+                        Time = (cat.DateExpire - cat.DatePublish).Value.Minutes,
+                        Result = true,
+                        ResultDate = DateTime.Now,
+                        OnlineExamId = cat.Id,
+                        ExamScores = examScores,
+                        TopScore = topScore,
+                        TeacherId = cat.Course.TeacherId,
+                        Source = "---"
+                    };
+
+                    await db.Exams.AddAsync(exam);
+                }
+                else
+                {
+                    var exam = await db.Exams
+                        .Include(c => c.ExamScores)
+                    .FirstOrDefaultAsync(c => c.OnlineExamId == cat.Id);
+
+                    exam.Name = cat.Title.Trim().Replace("/", "-");
+                    exam.Date = cat.DatePublish.Value;
+                    exam.NumberQ = cat.Attributes.Where(c => c.AttrType == AttrType.Question).Count();
+                    exam.ExamTypeId = cat.ExamTypeId;
+                    exam.GradeId = cat.GradeId.Value;
+                    exam.ClassId = cat.ClassId;
+                    exam.CourseId = cat.CourseId.Value;
+                    exam.WorkbookId = cat.WorkbookId;
+                    exam.Time = (cat.DateExpire - cat.DatePublish).Value.Minutes;
+                    exam.Result = true;
+                    exam.ResultDate = DateTime.Now;
+                    exam.TopScore = topScore;
+                    exam.TeacherId = cat.Course.TeacherId;
+                    exam.Source = "---";
+
+                    var mustToAddExamScores = new List<ExamScore>();
+
+                    foreach (var item in cat.Items)
+                    {
+                        var score = item.getTotalScoreFunction(item.ItemAttribute, param.saveScoreType == 2);
+
+                        if (param.saveScoreType == 2)
+                        {
+                            score = score * 5;
+                        }
+
+                        if (param.saveScoreType == 3)
+                        {
+                            score = getJustifiedScore(score, pureTopScore);
+                        }
+
+                        if (studentsList.Any(c => c.IdNumber2 == item.MeliCode))
+                        {
+                            var stdId = studentsList.FirstOrDefault(c => c.IdNumber2 == item.MeliCode).Id;
+
+                            if (exam.ExamScores.Any(c => c.StudentId == stdId))
+                            {
+                                var examScore = exam.ExamScores.FirstOrDefault(c => c.StudentId == stdId);
+                                var dbExamScore = db.ExamScores.FirstOrDefault(c => c.Id == examScore.Id);
+
+                                dbExamScore.TrueAnswer = item.TrueCount;
+                                dbExamScore.FalseAnswer = item.FalseCount;
+                                dbExamScore.BlankAnswer = item.BlankCount;
+                                dbExamScore.State = item.Title.EndsWith("(غائب)") ? ExamScoreState.TrueGhaeb : ExamScoreState.Hazer;
+                                dbExamScore.Score = score;
+                                dbExamScore.OnlineExamItemId = item.Id;
+                            }
+                            else
+                            {
+                                mustToAddExamScores.Add(new ExamScore
+                                {
+                                    ExamId = exam.Id,
+                                    StudentId = studentsList.FirstOrDefault(c => c.IdNumber2 == item.MeliCode).Id,
+                                    TrueAnswer = item.TrueCount,
+                                    FalseAnswer = item.FalseCount,
+                                    BlankAnswer = item.BlankCount,
+                                    State = item.Title.EndsWith("(غائب)") ? ExamScoreState.TrueGhaeb : ExamScoreState.Hazer,
+                                    Score = score,
+                                    OnlineExamItemId = item.Id
+                                });
+                            }
+                        }
+                    }
+
+                    if (mustToAddExamScores.Any())
+                    {
+                        await db.ExamScores.AddRangeAsync(mustToAddExamScores);
+                    }
+                }
+
+                await db.SaveChangesAsync();
 
                 return this.SuccessFunction();
             }
@@ -705,6 +881,14 @@ namespace SCMR_Api.Controllers
             {
                 return this.CatchFunction(e);
             }
+        }
+
+
+        private double getJustifiedScore(double score, double topScore)
+        {
+            double mix = (double)20 / topScore;
+
+            return (score * mix);
         }
 
         [HttpPost]
@@ -896,7 +1080,8 @@ namespace SCMR_Api.Controllers
                         dateExpireString = c.DateExpire.Value.ToPersianDate(),
                         timeExpire = c.DateExpire.Value.ToShortTimeString(),
                         headerPicUrl = string.IsNullOrEmpty(c.HeaderPicUrl) ? c.RegisterPicUrl : c.HeaderPicUrl,
-                        isArchived = c.IsArchived
+                        isArchived = c.IsArchived,
+                        CalculateNegativeScore = c.CalculateNegativeScore
                     })
                 .ToListAsync();
 
@@ -969,16 +1154,25 @@ namespace SCMR_Api.Controllers
             try
             {
                 var catList = await db.Categories
-                    .Where(c => c.Type == CategoryTotalType.onlineExam && !c.IsArchived)
-                    .Where(c => DateTime.Now >= c.DatePublish && DateTime.Now <= c.DateExpire && c.IsActive == true)
+                    .Where(c => c.Type == CategoryTotalType.onlineExam && !c.IsArchived && c.IsActive == true)
+                    .Where(c => c.DateExpire > DateTime.Now)
+                .OrderBy(c => c.DatePublish)
                 .Select(c => new
                 {
                     Id = c.Id,
                     Title = c.Title,
-                    registerPicUrl = string.IsNullOrEmpty(c.RegisterPicUrl) ? c.HeaderPicUrl : c.RegisterPicUrl,
-                    showInfoPicUrl = string.IsNullOrEmpty(c.ShowInfoPicUrl) ? c.HeaderPicUrl : c.ShowInfoPicUrl,
-                })
-                .ToListAsync();
+                    gradeString = c.Grade == null ? "" : c.Grade.Name,
+                    classString = c.Class == null ? "" : c.Class.Name,
+                    courseString = c.Course != null ? c.Course.Name : "",
+                    examTypeString = c.ExamType != null ? c.ExamType.Name : "",
+                    workbookString = c.Workbook != null ? c.Workbook.Name : "",
+                    datePublishString = c.DatePublish.Value.ToPersianDate(),
+                    timePublish = c.DatePublish.Value.ToShortTimeString(),
+                    dateExpireString = c.DateExpire.Value.ToPersianDate(),
+                    timeExpire = c.DateExpire.Value.ToShortTimeString(),
+                    headerPicUrl = string.IsNullOrEmpty(c.HeaderPicUrl) ? c.RegisterPicUrl : c.HeaderPicUrl,
+                    canStartExam = DateTime.Now >= c.DatePublish
+                }).ToListAsync();
 
                 return this.SuccessFunction(data: catList);
             }
@@ -1122,6 +1316,13 @@ namespace SCMR_Api.Controllers
             return items;
         }
 
+    }
+
+    public class AbsenceForOnlineExamParam
+    {
+        public int catId { get; set; }
+        public int saveScoreType { get; set; }
+        public bool deleteUnknownDatas { get; set; }
     }
 
     public class getAllByTeacherParam

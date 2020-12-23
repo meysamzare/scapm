@@ -1022,6 +1022,8 @@ namespace SCMR_Api.Controllers
         {
             try
             {
+                param.username = param.username.Trim().PersianToEnglishDigit();
+
                 var cat = await db.Categories.Include(c => c.Items).FirstOrDefaultAsync(c => c.Id == param.catId);
 
                 var isValid = false;
@@ -1094,14 +1096,28 @@ namespace SCMR_Api.Controllers
                         break;
                 }
 
+                var catTypeTitle = cat.Type == CategoryTotalType.onlineExam ? "آزمون آنلاین" : "نمون برگ";
+
                 if (!isValid)
                 {
-                    return this.UnSuccessFunction("نام کاربری و یا کلمه عبور شما اشتباه است و یا شما مجوز مشاهده این نمون برگ را ندارید!");
+                    return this.UnSuccessFunction(" نام کاربری و یا کلمه عبور شما اشتباه است و یا شما مجوز مشاهده این " + catTypeTitle + " را ندارید!");
                 }
 
                 if (cat.Items.Any(c => c.AuthorizedUsername == param.username))
                 {
                     return this.UnSuccessFunction("داده ای با این نام کاربری قبلا در سیستم ثبت شده است");
+                }
+
+                if (cat.Type == CategoryTotalType.onlineExam && cat.AuthorizeState == CategoryAuthorizeState.PMA)
+                {
+                    var studentStdClassMng = await db.Students.Where(c => c.IdNumber2 == param.username)
+                        .SelectMany(c => c.StdClassMngs).Where(c => c.IsActive).FirstOrDefaultAsync();
+
+
+                    if (cat.GradeId != studentStdClassMng.GradeId || (cat.ClassId.HasValue && cat.ClassId.Value != studentStdClassMng.ClassId))
+                    {
+                        return this.UnSuccessFunction("این آزمون آنلاین برای پایه و یا کلاس دیگری است! و شما مجاز به شرکت در آن نیستید.");
+                    }
                 }
 
                 var jwt = BuildToken(param.username, 15);

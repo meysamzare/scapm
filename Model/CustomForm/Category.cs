@@ -99,7 +99,9 @@ namespace SCMR_Api.Model
         public bool IsArchived { get; set; }
 
 
-        // public double TopScore { get; set; }
+        public double TopScore { get; set; }
+        public bool IsStaticDataSaved { get; set; }
+        public DateTime LastSavedStaticData { get; set; }
 
 
 

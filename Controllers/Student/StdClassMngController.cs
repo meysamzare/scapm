@@ -141,7 +141,7 @@ namespace SCMR_Api.Controllers
                     yeareducationName = c.Yeareducation.Name,
                     className = c.Class.Name,
 
-                    canRemove = !c.Student.ExamScores.Any(b => b.Exam.YeareducationId == c.YeareducationId &&
+                    canRemove = !c.Student.ExamScores.Any(b => b.Exam.Grade.YeareducationId == c.YeareducationId &&
                                     b.Exam.GradeId == c.GradeId && b.Exam.ClassId == c.ClassId),
 
                     StudyState = c.StudyState,

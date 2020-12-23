@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20201206171929_initUpdate47_3")]
+    partial class initUpdate47_3
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -458,7 +460,7 @@ namespace SCMR_Api.Migrations
 
                     b.Property<string>("CancellReason");
 
-                    b.Property<int?>("ClassId")
+                    b.Property<int>("ClassId")
                         .HasColumnName("Ex.Class");
 
                     b.Property<int>("CourseId")
@@ -467,7 +469,7 @@ namespace SCMR_Api.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnName("Ex.Date");
 
-                    b.Property<int?>("ExamTypeId")
+                    b.Property<int>("ExamTypeId")
                         .HasColumnName("Ex.ExamTyp");
 
                     b.Property<int>("GradeId")
@@ -480,8 +482,6 @@ namespace SCMR_Api.Migrations
 
                     b.Property<int>("NumberQ")
                         .HasColumnName("Ex.AmauntQuestion");
-
-                    b.Property<int?>("OnlineExamId");
 
                     b.Property<int>("Order")
                         .HasColumnName("Ex.Order");
@@ -497,18 +497,19 @@ namespace SCMR_Api.Migrations
                     b.Property<string>("Source")
                         .HasColumnName("Ex.Source");
 
-                    b.Property<int?>("TeacherId")
+                    b.Property<int>("TeacherId")
                         .HasColumnName("Ex.Teacher");
 
                     b.Property<int>("Time")
                         .HasColumnName("Ex.Time");
 
-                    b.Property<double>("TopScore")
+                    b.Property<int>("TopScore")
                         .HasColumnName("Ex.TopScore");
 
                     b.Property<int?>("WorkbookId");
 
-                    b.Property<int?>("YeareducationId");
+                    b.Property<int>("YeareducationId")
+                        .HasColumnName("Ex.Year");
 
                     b.HasKey("Id");
 
@@ -541,13 +542,16 @@ namespace SCMR_Api.Migrations
                     b.Property<int>("BlankAnswer")
                         .HasColumnName("Ex.BlankAnswer");
 
+                    b.Property<int?>("DescriptiveScoreId");
+
                     b.Property<int>("ExamId")
                         .HasColumnName("Exsc.Examid");
 
                     b.Property<int>("FalseAnswer")
                         .HasColumnName("Ex.WrongAnswer");
 
-                    b.Property<int?>("OnlineExamItemId");
+                    b.Property<int>("NumberQ")
+                        .HasColumnName("Ex.AmauntQuestion");
 
                     b.Property<double>("Score")
                         .HasColumnName("Ex.Score");
@@ -557,10 +561,15 @@ namespace SCMR_Api.Migrations
                     b.Property<int>("StudentId")
                         .HasColumnName("Exsc.Studentid");
 
+                    b.Property<int>("TopScore")
+                        .HasColumnName("Ex.TopScore");
+
                     b.Property<int>("TrueAnswer")
                         .HasColumnName("Ex.CorrectAnswer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DescriptiveScoreId");
 
                     b.HasIndex("ExamId");
 
@@ -2969,10 +2978,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2020, 12, 15, 8, 20, 53, 241, DateTimeKind.Local).AddTicks(7904),
+                            DateAdd = new DateTime(2020, 12, 6, 20, 49, 26, 592, DateTimeKind.Local).AddTicks(3297),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("026af37b-c02c-431a-b4aa-19a98788e77f"),
+                            GId = new Guid("dd992f90-d2e2-4444-9d5c-9324c667f9ff"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",
@@ -3265,7 +3274,8 @@ namespace SCMR_Api.Migrations
                 {
                     b.HasOne("SCMR_Api.Model.Class", "Class")
                         .WithMany("Exams")
-                        .HasForeignKey("ClassId");
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("SCMR_Api.Model.Course", "Course")
                         .WithMany("Exams")
@@ -3274,7 +3284,8 @@ namespace SCMR_Api.Migrations
 
                     b.HasOne("SCMR_Api.Model.ExamType", "ExamType")
                         .WithMany("Exams")
-                        .HasForeignKey("ExamTypeId");
+                        .HasForeignKey("ExamTypeId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("SCMR_Api.Model.Grade", "Grade")
                         .WithMany("Exams")
@@ -3287,19 +3298,25 @@ namespace SCMR_Api.Migrations
 
                     b.HasOne("SCMR_Api.Model.Teacher", "Teacher")
                         .WithMany("Exams")
-                        .HasForeignKey("TeacherId");
+                        .HasForeignKey("TeacherId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("SCMR_Api.Model.Workbook", "Workbook")
                         .WithMany("Exams")
                         .HasForeignKey("WorkbookId");
 
-                    b.HasOne("SCMR_Api.Model.Yeareducation")
+                    b.HasOne("SCMR_Api.Model.Yeareducation", "Yeareducation")
                         .WithMany("Exams")
-                        .HasForeignKey("YeareducationId");
+                        .HasForeignKey("YeareducationId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.ExamScore", b =>
                 {
+                    b.HasOne("DescriptiveScore", "DescriptiveScore")
+                        .WithMany()
+                        .HasForeignKey("DescriptiveScoreId");
+
                     b.HasOne("SCMR_Api.Model.Exam", "Exam")
                         .WithMany("ExamScores")
                         .HasForeignKey("ExamId")

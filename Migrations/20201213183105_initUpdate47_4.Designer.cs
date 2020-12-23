@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20201213183105_initUpdate47_4")]
+    partial class initUpdate47_4
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -546,8 +548,6 @@ namespace SCMR_Api.Migrations
 
                     b.Property<int>("FalseAnswer")
                         .HasColumnName("Ex.WrongAnswer");
-
-                    b.Property<int?>("OnlineExamItemId");
 
                     b.Property<double>("Score")
                         .HasColumnName("Ex.Score");
@@ -2969,10 +2969,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2020, 12, 15, 8, 20, 53, 241, DateTimeKind.Local).AddTicks(7904),
+                            DateAdd = new DateTime(2020, 12, 13, 22, 1, 3, 781, DateTimeKind.Local).AddTicks(3206),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("026af37b-c02c-431a-b4aa-19a98788e77f"),
+                            GId = new Guid("2de07199-9680-4b83-91b4-981066f40d08"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",

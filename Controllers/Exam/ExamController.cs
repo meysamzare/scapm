@@ -106,14 +106,14 @@ namespace SCMR_Api.Controllers
                     examAddParam.exam.ResultDate = examAddParam.exam.ResultDate.Value.Date + resTime;
                 }
 
-                var exam = await db.Exams.Include(c => c.Children).Include(c => c.Parent).SingleAsync(c => c.Id == examAddParam.exam.Id);
+                var exam = await db.Exams.Include(c => c.Grade).Include(c => c.Children).Include(c => c.Parent).SingleAsync(c => c.Id == examAddParam.exam.Id);
 
                 if (await isInChildExam(exam, examAddParam.exam.ParentId))
                 {
                     return this.UnSuccessFunction("این آزمون نمیتواند انتخاب شود C2");
                 }
 
-                if (exam.YeareducationId != nowYeareducationId)
+                if (exam.Grade.YeareducationId != nowYeareducationId)
                 {
                     return this.UnSuccessFunction("این آزمون نمی تواند ویرایش شود");
                 }
@@ -148,7 +148,6 @@ namespace SCMR_Api.Controllers
                 exam.ClassId = examAddParam.exam.ClassId;
                 exam.TeacherId = examAddParam.exam.TeacherId;
                 exam.Order = examAddParam.exam.Order;
-                exam.YeareducationId = examAddParam.exam.YeareducationId;
                 exam.CourseId = examAddParam.exam.CourseId;
                 exam.Time = examAddParam.exam.Time;
                 exam.Result = examAddParam.exam.Result;
@@ -220,7 +219,7 @@ namespace SCMR_Api.Controllers
                 var query = getparams.q;
 
                 var ex = db.Exams
-                    .Where(c => c.YeareducationId == nowYeareducationId)
+                    .Where(c => c.Grade.YeareducationId == nowYeareducationId)
                 .AsQueryable();
 
 
@@ -229,7 +228,7 @@ namespace SCMR_Api.Controllers
 
                     ex = ex.Where(c => c.Name.Contains(query) || c.Order.ToString().Contains(query) ||
                                     c.ExamType.Name.Contains(query) || c.Class.Name.Contains(query) || c.Grade.Name.Contains(query) ||
-                                    c.Teacher.Name.Contains(query) || c.Yeareducation.Name.Contains(query) || c.Course.Name.Contains(query) ||
+                                    c.Teacher.Name.Contains(query) || c.Course.Name.Contains(query) ||
                                     c.parentName.Contains(query));
 
                 }
@@ -369,11 +368,11 @@ namespace SCMR_Api.Controllers
                     dateString = c.dateString,
                     examTypeName = c.ExamType.Name,
                     gradeName = c.Grade.Name,
-                    className = c.Class.Name,
+                    className = c.Class != null ? c.Class.Name : "",
                     courseName = c.Course.Name,
                     haveChildren = c.Children.Any(),
                     Result = c.Result,
-                    YeareducationId = c.YeareducationId
+                    YeareducationId = c.Grade.YeareducationId
                 })
                 .ToListAsync();
 
@@ -437,7 +436,7 @@ namespace SCMR_Api.Controllers
                     id = c.Id,
                     name = c.Name,
                     CourseId = c.CourseId,
-                    YeareducationId = c.YeareducationId,
+                    YeareducationId = c.Grade.YeareducationId,
                     ClassId = c.ClassId,
                     GradeId = c.GradeId,
                     WorkbookId = c.WorkbookId
@@ -468,32 +467,13 @@ namespace SCMR_Api.Controllers
                     id = c.Id.ToString(),
                     name = c.Name,
                     CourseId = c.CourseId,
-                    YeareducationId = c.YeareducationId,
+                    YeareducationId = c.Grade.YeareducationId,
                     ClassId = c.ClassId,
                     GradeId = c.GradeId,
                     WorkbookId = c.WorkbookId
                 })
                 .Where(c => c.YeareducationId == nowYeareducationId)
                 .ToListAsync();
-
-                var onlineExams = db.Categories
-                    .Where(c => c.Type == CategoryTotalType.onlineExam)
-                    .Where(c => c.GradeId.HasValue ? c.Grade.YeareducationId == nowYeareducationId : true);
-
-                if (onlineExams != null && onlineExams.Count() != 0)
-                {
-                    ex.AddRange(onlineExams.Select(c => new
-                    {
-                        id = $"OE{c.Id}",
-                        name = $"{c.Title} (آزمون آنلاین)",
-                        CourseId = c.CourseId.HasValue ? c.CourseId.Value : 0,
-                        YeareducationId = c.GradeId.HasValue ? c.Grade.YeareducationId : 0,
-                        ClassId = c.ClassId.HasValue ? c.ClassId.Value : 0,
-                        GradeId = c.GradeId.HasValue ? c.GradeId.Value : 0,
-                        WorkbookId = c.WorkbookId
-                    }));
-                }
-
 
                 return this.DataFunction(true, ex);
             }
@@ -511,7 +491,7 @@ namespace SCMR_Api.Controllers
             {
 
                 var ex = await db.Exams
-                    .Where(c => c.YeareducationId == getexam.yeareducationId
+                    .Where(c => c.Grade.YeareducationId == getexam.yeareducationId
                             && c.GradeId == getexam.gradeId
                             && c.ClassId == getexam.classId
                             && c.IsCancelled == false)
@@ -547,39 +527,12 @@ namespace SCMR_Api.Controllers
                             canShowByWorkBook = c.canShowByWorkBook(c.Workbook),
                             WorkbookId = c.WorkbookId,
                             TopScore = double.Parse(c.TopScore.ToString()),
-                            isOnlineExam = false,
-                            canShowDetail = false,
+                            isOnlineExam = c.OnlineExamId.HasValue,
+                            OnlineExamId = c.OnlineExamId,
+                            canShowDetail = true,
                             isFullDataLoaded = true
                         })
                 .ToListAsync();
-
-                // Adding Online Exams To List
-                var onlineExams = db.Categories
-                    .Where(c => c.Type == CategoryTotalType.onlineExam && c.GradeId.HasValue ? c.GradeId.Value == gradeId : false);
-
-                ex.AddRange(onlineExams.Select(c => new
-                {
-                    Id = $"OE{c.Id}",
-                    Name = c.Title,
-                    dateString = c.DatePublish.Value.ToPersianDate(),
-                    courseName = c.Course != null ? c.Course.Name : "",
-                    avgInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Avg),
-                    minInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Min),
-                    maxInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Max),
-                    CourseId = c.CourseId.HasValue ? c.CourseId.Value : 0,
-                    ExamTypeId = c.ExamTypeId.HasValue ? c.ExamTypeId.Value : 0,
-                    Date = c.DatePublish.Value,
-                    canShowByWorkBook = c.canShowByWorkBook(c.Workbook),
-                    WorkbookId = c.WorkbookId,
-                    TopScore = c.getTotalScore(c.Attributes.ToList(), c.UseLimitedRandomQuestionNumber,
-                        c.VeryHardQuestionNumber,
-                        c.HardQuestionNumber,
-                        c.ModerateQuestionNumber,
-                        c.EasyQuestionNumber),
-                    isOnlineExam = true,
-                    canShowDetail = c.HaveInfo && c.IsInfoShow ? true : false,
-                    isFullDataLoaded = false
-                }));
 
                 ex = ex.OrderByDescending(c => c.Date).ToList();
 
@@ -664,34 +617,7 @@ namespace SCMR_Api.Controllers
                             Result = c.Result
                         })
                 .ToListAsync();
-
-                var onlineExams = db.Categories
-                    .Where(c => c.Type == CategoryTotalType.onlineExam && c.ClassId.HasValue ? c.ClassId.Value == classId : false);
-
-                ex.AddRange(onlineExams.Select(c => new
-                {
-                    Id = $"OE{c.Id}",
-                    Name = c.Title,
-                    dateString = c.DatePublish.Value.ToPersianDate(),
-                    courseName = c.Course != null ? c.Course.Name : "",
-                    avgInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Avg),
-                    minInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Min),
-                    maxInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Max),
-                    CourseId = c.CourseId.HasValue ? c.CourseId.Value : 0,
-                    ExamTypeId = c.ExamTypeId.HasValue ? c.ExamTypeId.Value : 0,
-                    Date = c.DatePublish.Value,
-                    canShowByWorkBook = c.canShowByWorkBook(c.Workbook),
-                    WorkbookId = c.WorkbookId,
-                    TopScore = c.getTotalScore(c.Attributes.ToList(),
-                        c.UseLimitedRandomQuestionNumber,
-                        c.VeryHardQuestionNumber,
-                        c.HardQuestionNumber,
-                        c.ModerateQuestionNumber,
-                        c.EasyQuestionNumber),
-                    isOnlineExam = true,
-                    Result = true
-                }));
-
+                
                 ex = ex.OrderByDescending(c => c.Date).ToList();
 
                 return this.DataFunction(true, ex);
@@ -901,7 +827,7 @@ namespace SCMR_Api.Controllers
         {
             get
             {
-                return db.Exams.Where(c => c.YeareducationId == this.getActiveYeareducationIdNonAsync()).Include(c => c.Parent).Include(c => c.Children).ToList();
+                return db.Exams.Where(c => c.Grade.YeareducationId == this.getActiveYeareducationIdNonAsync()).Include(c => c.Parent).Include(c => c.Children).ToList();
             }
         }
 
@@ -982,7 +908,7 @@ namespace SCMR_Api.Controllers
                         teacherName = c.Teacher.Name,
                         TopScore = c.TopScore,
                         examTypeName = c.ExamType.Name,
-                        YeareducationId = c.YeareducationId
+                        YeareducationId = c.Grade.YeareducationId
                     })
                     .Where(c => c.YeareducationId == nowYeareducationId)
                 .ToListAsync();
@@ -1018,7 +944,7 @@ namespace SCMR_Api.Controllers
                         teacherName = c.Teacher.Name,
                         TopScore = c.TopScore,
                         examTypeName = c.ExamType.Name,
-                        YeareducationId = c.YeareducationId
+                        YeareducationId = c.Grade.YeareducationId
                     })
                     .Where(c => c.YeareducationId == nowYeareducationId)
                 .ToListAsync();

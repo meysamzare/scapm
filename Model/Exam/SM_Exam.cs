@@ -28,28 +28,27 @@ namespace SCMR_Api.Model
         public string Source { get; set; }
 
         [Column("Ex.TopScore")]
-        public int TopScore { get; set; }
+        public double TopScore { get; set; }
 
         [Column("Ex.ExamTyp")]
-        public int ExamTypeId { get; set; }
+        public int? ExamTypeId { get; set; }
 
         [Column("Ex.Grade")]
         public int GradeId { get; set; }
 
         [Column("Ex.Class")]
-        public int ClassId { get; set; }
+        public int? ClassId { get; set; }
 
         [Column("Ex.Teacher")]
-        public int TeacherId { get; set; }
+        public int? TeacherId { get; set; }
 
         [Column("Ex.Order")]
         public int Order { get; set; }
 
-        [Column("Ex.Year")]
-        public int YeareducationId { get; set; }
-
         [Column("Ex.Course")]
         public int CourseId { get; set; }
+        
+        public int? WorkbookId { get; set; }
 
         [Column("Ex.Time")]
         public int Time { get; set; }
@@ -62,6 +61,9 @@ namespace SCMR_Api.Model
 
         public bool IsCancelled { get; set; }
         public string CancellReason { get; set; }
+
+
+        public int? OnlineExamId { get; set; }
 
 
         public int? ParentId { get; set; }
@@ -81,19 +83,12 @@ namespace SCMR_Api.Model
         [ForeignKey("TeacherId")]
         public virtual Teacher Teacher { get; set; }
 
-        [ForeignKey("YeareducationId")]
-        public virtual Yeareducation Yeareducation { get; set; }
-
-        public bool isDescriptive => Yeareducation != null ? Yeareducation.ScoreType == YeareducationScoreType.Descriptive : false;
-
         [ForeignKey("CourseId")]
         public virtual Course Course { get; set; }
 
         [ForeignKey("ExamTypeId")]
         public virtual ExamType ExamType { get; set; }
 
-
-        public int? WorkbookId { get; set; }
         [ForeignKey("WorkbookId")]
         public virtual Workbook Workbook { get; set; }
 
@@ -310,21 +305,6 @@ namespace SCMR_Api.Model
                 else
                 {
                     return Teacher.Name;
-                }
-            }
-        }
-
-        public string yeareducationName
-        {
-            get
-            {
-                if (Yeareducation == null)
-                {
-                    return "";
-                }
-                else
-                {
-                    return Yeareducation.Name;
                 }
             }
         }

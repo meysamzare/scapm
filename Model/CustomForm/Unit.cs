@@ -7,16 +7,15 @@ namespace SCMR_Api.Model
 {
     public class Unit
     {
-        public Unit()
-        {
-
-        }
+        public Unit() { }
 
         public int Id { get; set; }
 
         public string Title { get; set; }
 
         public string EnTitle { get; set; }
+
+        public int Order { get; set; }
 
 
         public virtual IList<Item> Items { get; set; }

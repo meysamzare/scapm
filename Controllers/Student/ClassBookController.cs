@@ -58,8 +58,6 @@ namespace SCMR_Api.Controllers
                         Score = double.Parse(classBook.Value),
                         State = ExamScoreState.Hazer,
                         StudentId = classBook.StudentId,
-                        TopScore = exam.TopScore,
-                        NumberQ = exam.NumberQ,
                         TrueAnswer = 0,
                         FalseAnswer = 0,
                         BlankAnswer = 0
@@ -89,14 +87,27 @@ namespace SCMR_Api.Controllers
             try
             {
 
-                // var clsBook = await db.ClassBooks.FirstOrDefaultAsync(c => c.Id == classBook.Id);
+                var clsBook = await db.ClassBooks.FirstOrDefaultAsync(c => c.Id == classBook.Id);
 
-                // var dateBefore = clsBook.Date;
+                var dateBefore = clsBook.Date;
 
-                // if (classBook.Date != dateBefore)
-                // {
-                //     classBook.Date = classBook.Date.AddDays(1);
-                // }
+                if (classBook.Date != dateBefore)
+                {
+                    classBook.Date = classBook.Date.AddDays(1);
+                }
+
+                clsBook.InsTituteId = classBook.InsTituteId;
+                clsBook.YeareducationId = classBook.YeareducationId;
+                clsBook.GradeId = classBook.GradeId;
+                clsBook.ClassId = classBook.ClassId;
+                clsBook.CourseId = classBook.CourseId;
+                clsBook.StudentId = classBook.StudentId;
+                clsBook.TeacherId = classBook.TeacherId;
+                clsBook.Value = classBook.Value;
+                clsBook.RegisterType = classBook.RegisterType;
+                clsBook.RegisterId = classBook.RegisterId;
+                clsBook.ExamId = classBook.ExamId;
+                clsBook.ExamName = classBook.ExamName;
 
                 if (classBook.Type == ClassBookType.ExamScore)
                 {
@@ -106,21 +117,7 @@ namespace SCMR_Api.Controllers
                     {
                         var examSC = await db.ExamScores.FirstOrDefaultAsync(c => c.StudentId == classBook.StudentId && c.ExamId == exam.Id);
 
-                        var examScore = new ExamScore
-                        {
-                            Id = examSC.Id,
-                            ExamId = exam.Id,
-                            Score = double.Parse(classBook.Value),
-                            State = ExamScoreState.Hazer,
-                            StudentId = classBook.StudentId,
-                            TopScore = exam.TopScore,
-                            NumberQ = exam.NumberQ,
-                            TrueAnswer = 0,
-                            FalseAnswer = 0,
-                            BlankAnswer = 0
-                        };
-
-                        db.Update(examScore);
+                        examSC.Score = double.Parse(classBook.Value);
                     }
                     else
                     {
@@ -130,8 +127,6 @@ namespace SCMR_Api.Controllers
                             Score = double.Parse(classBook.Value),
                             State = ExamScoreState.Hazer,
                             StudentId = classBook.StudentId,
-                            TopScore = exam.TopScore,
-                            NumberQ = exam.NumberQ,
                             TrueAnswer = 0,
                             FalseAnswer = 0,
                             BlankAnswer = 0
@@ -143,8 +138,6 @@ namespace SCMR_Api.Controllers
                         await db.ExamScores.AddAsync(examScore);
                     }
                 }
-
-                db.Update(classBook);
 
                 await db.SaveChangesAsync();
 
@@ -173,12 +166,7 @@ namespace SCMR_Api.Controllers
 
                 var query = getparams.q;
 
-                var sl = db.ClassBooks
-                .Where(c => c.Grade.YeareducationId == nowYeareducationId)
-                    .Include(c => c.Student)
-                    .Include(c => c.Grade)
-                    .Include(c => c.Class)
-                .AsQueryable();
+                var sl = db.ClassBooks.Where(c => c.Grade.YeareducationId == nowYeareducationId).AsQueryable();
 
 
                 if (!string.IsNullOrWhiteSpace(query))
@@ -471,7 +459,7 @@ namespace SCMR_Api.Controllers
 
 
     }
-    
+
     public class getByStdGradeParam
     {
         public int studentId { get; set; }
