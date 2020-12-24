@@ -18,6 +18,9 @@ using SCMR_Api.Model;
 using Newtonsoft.Json;
 using System.Drawing;
 using System.Globalization;
+using Microsoft.Net.Http.Headers;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Net;
 
 namespace SCMR_Api.Controllers
 {
@@ -1155,17 +1158,82 @@ namespace SCMR_Api.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        class UploadedFileType
+        {
+            public string fileName { get; set; }
+            public string filePath { get; set; }
+        }
+
         [HttpPost]
         [AllowAnonymous]
         [DisableRequestSizeLimit]
+        [DisableFormValueModelBinding]
         [RequestFormLimits(ValueLengthLimit = int.MaxValue, MultipartBodyLengthLimit = long.MaxValue)]
-        public async Task<IActionResult> SetItemeWithAttrs()
+        public async Task<IActionResult> SetItemWithAttrs()
         {
+            var uploadedFiles = new List<UploadedFileType>();
+
             try
             {
-                var itemWithAttrs = JsonConvert.DeserializeObject<ItemWithAttrsParams>(Request.Form.FirstOrDefault(c => c.Key == "object").Value);
+                ItemWithAttrsParams itemWithAttrs = null;
 
-                var files = Request.Form.Files;
+                var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType), 10000);
+                var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+                var section = await reader.ReadNextSectionAsync();
+
+
+                var guidd = System.Guid.NewGuid().ToString();
+                Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guidd));
+
+                while (section != null)
+                {
+                    var hasContentDispositionHeader = ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var contentDisposition);
+
+                    if (hasContentDispositionHeader)
+                    {
+                        if (!MultipartRequestHelper.HasFileContentDisposition(contentDisposition))
+                        {
+                            var streamedFileContent = await FileHelpers.ProcessStreamedFile(
+                                section, contentDisposition, ModelState,
+                                new string[0], 10);
+
+                            var str = System.Text.Encoding.Default.GetString(streamedFileContent);
+
+                            itemWithAttrs = JsonConvert.DeserializeObject<ItemWithAttrsParams>(str);
+                        }
+                        else
+                        {
+                            var streamedFileContent = await FileHelpers.ProcessStreamedFile(
+                                section, contentDisposition, ModelState,
+                                new string[0], 1000);
+
+                            if (ModelState.IsValid)
+                            {
+                                string fileName = contentDisposition.FileName.Value;
+                                var path = Path.Combine("/UploadFiles", guidd, fileName);
+                                var directoryPath = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guidd, fileName);
+
+                                using (var targetStream = System.IO.File.Create(directoryPath))
+                                {
+                                    await targetStream.WriteAsync(streamedFileContent);
+                                }
+
+                                uploadedFiles.Add(new UploadedFileType
+                                {
+                                    fileName = fileName,
+                                    filePath = path
+                                });
+                            }
+                        }
+                    }
+
+                    section = await reader.ReadNextSectionAsync();
+                }
+
+                if (itemWithAttrs == null)
+                {
+                    return this.UnSuccessFunction("Incomplate Data");
+                }
 
                 var item = new Item
                 {
@@ -1186,41 +1254,10 @@ namespace SCMR_Api.Controllers
                     var filepath = "";
                     if (itemAttr.AttributeFilePath.Equals("1"))
                     {
-                        if (itemAttr.AttrubuteValue == "(binery)")
+                        var uploadedFile = uploadedFiles.SingleOrDefault(c => c.fileName == itemAttr.FileName);
+                        if (uploadedFile != null)
                         {
-                            var file = files.FirstOrDefault(c => c.FileName == itemAttr.FileName);
-
-                            var guid = System.Guid.NewGuid().ToString();
-                            Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
-                            string fileName = System.Net.Http.Headers.ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
-                            var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, fileName);
-
-                            if (file.Length > 0)
-                            {
-                                using (var stream = new FileStream(path, FileMode.Create))
-                                {
-                                    await file.CopyToAsync(stream);
-                                }
-                            }
-
-                            filepath = Path.Combine("/UploadFiles", guid, fileName);
-                        }
-                        else
-                        {
-                            if (!string.IsNullOrWhiteSpace(itemAttr.AttrubuteValue))
-                            {
-                                var guid = System.Guid.NewGuid().ToString();
-
-                                var path = Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid, itemAttr.FileName);
-                                Directory.CreateDirectory(Path.Combine(hostingEnvironment.ContentRootPath, "UploadFiles", guid));
-
-                                byte[] bytes = Convert.FromBase64String(itemAttr.AttrubuteValue);
-                                await System.IO.File.WriteAllBytesAsync(path, bytes);
-
-                                filepath = Path.Combine("/UploadFiles", guid, itemAttr.FileName);
-
-                                itemAttr.AttrubuteValue = path;
-                            }
+                            filepath = uploadedFile.filePath;
                         }
                     }
 
@@ -1248,29 +1285,45 @@ namespace SCMR_Api.Controllers
                     .Include(c => c.Attributes)
                 .FirstOrDefaultAsync(c => c.Id == itemWithAttrs.catId);
 
-                var itemIncluded = await db.Items
-                    .Include(c => c.ItemAttribute)
-                        .ThenInclude(c => c.Attribute)
-                            .ThenInclude(c => c.Question)
-                                .ThenInclude(c => c.QuestionOptions)
-                .FirstOrDefaultAsync(c => c.Id == itemId);
+                var scoreString = "";
 
-                var catTotalScore = cat.getTotalScore(
-                    cat.Attributes.ToList(),
-                    cat.UseLimitedRandomQuestionNumber,
-                    cat.VeryHardQuestionNumber,
-                    cat.HardQuestionNumber,
-                    cat.ModerateQuestionNumber,
-                    cat.EasyQuestionNumber);
+                if (cat.ShowScoreAfterDone && cat.Type == CategoryTotalType.onlineExam)
+                {
+                    var itemIncluded = await db.Items
+                        .Include(c => c.ItemAttribute)
+                            .ThenInclude(c => c.Attribute)
+                                .ThenInclude(c => c.Question)
+                                    .ThenInclude(c => c.QuestionOptions)
+                    .FirstOrDefaultAsync(c => c.Id == itemId);
 
-                var itemScore = itemIncluded.getTotalScore;
+                    var catTotalScore = cat.getTotalScore(
+                        cat.Attributes.ToList(),
+                        cat.UseLimitedRandomQuestionNumber,
+                        cat.VeryHardQuestionNumber,
+                        cat.HardQuestionNumber,
+                        cat.ModerateQuestionNumber,
+                        cat.EasyQuestionNumber);
 
-                var scoreString = cat.ShowScoreAfterDone && cat.Type == CategoryTotalType.onlineExam ? $"\n نمره فعلی شما: {itemScore} از {catTotalScore} \n" : "";
+                    var itemScore = itemIncluded.getTotalScore;
+
+                    scoreString = cat.ShowScoreAfterDone && cat.Type == CategoryTotalType.onlineExam ? $"\n نمره فعلی شما: {itemScore} از {catTotalScore} \n" : "";
+                }
 
                 return this.CustomFunction(true, cat.EndMessage + scoreString, rahCode.ToString(), null);
             }
             catch (System.Exception e)
             {
+                if (uploadedFiles.Any())
+                {
+                    uploadedFiles.ForEach(file =>
+                    {
+                        try
+                        {
+                            System.IO.File.Delete(Path.Combine(hostingEnvironment.ContentRootPath, file.filePath));
+                        }
+                        catch { }
+                    });
+                }
                 return this.CatchFunction(e);
             }
         }
