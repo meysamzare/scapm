@@ -385,7 +385,7 @@ namespace SCMR_Api.Controllers
                     {
                         Id = c.Id.ToString(),
                         Rating = c.getRating(c.Exam.ExamScores.ToList(), c.Score),
-                        Score = c.Score.ToString(),
+                        Score = c.Score.ToString("0.##"),
                         StudentId = c.StudentId,
                         ExamId = c.ExamId.ToString(),
                         State = c.State,
@@ -648,7 +648,7 @@ namespace SCMR_Api.Controllers
                         .Select(c => c.Student.Id)
                             .Distinct()
                 .ToListAsync();
-                
+
 
                 var stds = new List<STDWorkbookReturn>();
 
@@ -785,10 +785,19 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var exam = await db.Exams.Include(c => c.ExamScores).Include(c => c.Grade).FirstOrDefaultAsync(c => c.Id == examId);
+                var exam = await db.Exams
+                    .Include(c => c.ExamScores)
+                    .Include(c => c.Grade)
+                .FirstOrDefaultAsync(c => c.Id == examId);
 
-                var students = await db.StdClassMngs.Where(c => c.GradeId == exam.GradeId && c.ClassId == exam.ClassId && c.YeareducationId == exam.Grade.YeareducationId)
-                        .Select(c => c.Student)
+                var stdClassMngs = db.StdClassMngs.Where(c => c.GradeId == exam.GradeId && c.YeareducationId == exam.Grade.YeareducationId);
+
+                if (exam.ClassId.HasValue)
+                {
+                    stdClassMngs.Where(c => c.ClassId == exam.ClassId);
+                }
+
+                var students = await stdClassMngs.Select(c => c.Student).Distinct()
                     .OrderBy(c => c.LastName).ThenBy(c => c.Name)
                 .ToListAsync();
 
@@ -838,18 +847,25 @@ namespace SCMR_Api.Controllers
                     {
                         worksheet.Cells[2 + (index + 1), 1].Value = student.fullName;
                         worksheet.Cells[2 + (index + 1), 2].Value = student.Code;
-                        // if (exam.ExamScores.Any(c => c.StudentId == student.Id))
-                        // {
-                        //     if (canUserEditExamScore)
-                        //     {
 
-                        //     }
-                        //     else
-                        //     {
-                        //         worksheet.Cells[2 + (index + 1), 3].Style.Fill.BackgroundColor.SetColor(Color.Gray);
-                        //     }
-                        // }
-                        worksheet.Cells[2 + (index + 1), 3].Value = "";
+                        var score = "";
+
+                        if (exam.ExamScores.Any(c => c.StudentId == student.Id) && canUserEditExamScore)
+                        {
+                            var examScore = exam.ExamScores.FirstOrDefault(c => c.StudentId == student.Id);
+
+                            if (examScore.State == ExamScoreState.Hazer) {
+                                score = examScore.scoreString;
+                            } else if (examScore.State == ExamScoreState.TrueGhaeb) {
+                                score = "T";
+                            } else if (examScore.State == ExamScoreState.FalseGhaeb) {
+                                score = "F";
+                            } else {
+                                score = "";
+                            }
+                        }
+
+                        worksheet.Cells[2 + (index + 1), 3].Value = score;
                     }
 
                     var fileContents = package.GetAsByteArray();
