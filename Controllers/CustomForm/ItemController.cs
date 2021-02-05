@@ -20,6 +20,7 @@ using System.Drawing;
 using System.Globalization;
 using Microsoft.Net.Http.Headers;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.AspNetCore.Http;
 using System.Net;
 
 namespace SCMR_Api.Controllers
@@ -35,13 +36,14 @@ namespace SCMR_Api.Controllers
         const string onlineExamRoleTitle = "OnlineExamResult";
 
         private IHostingEnvironment hostingEnvironment;
+        private IHttpContextAccessor accessor;
 
         private IConfiguration _config;
-        public ItemController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment, IConfiguration config)
+        public ItemController(Data.DbContext _db, IHttpContextAccessor _accessor, IHostingEnvironment _hostingEnvironment, IConfiguration config)
         {
             db = _db;
             hostingEnvironment = _hostingEnvironment;
-
+            accessor = _accessor;
             _config = config;
         }
 
@@ -805,7 +807,9 @@ namespace SCMR_Api.Controllers
 
                 var files = Request.Form.Files;
 
-                var file = files.FirstOrDefault(c => c.FileName == itemAttr.fileName);
+                string filename = itemAttr.fileName;
+
+                var file = files.FirstOrDefault(c => c.FileName == filename);
 
                 int itemid = itemAttr.itemId;
                 int attrid = itemAttr.attributeId;
@@ -1027,18 +1031,23 @@ namespace SCMR_Api.Controllers
             {
                 param.username = param.username.Trim().PersianToEnglishDigit();
 
-                var cat = await db.Categories.Include(c => c.Items).FirstOrDefaultAsync(c => c.Id == param.catId);
+                var cat = await db.Categories
+                    .Include(c => c.Items)
+                        .ThenInclude(c => c.ItemAttribute)
+                            .ThenInclude(c => c.Attribute)
+                .FirstOrDefaultAsync(c => c.Id == param.catId);
 
                 var isValid = false;
 
-                var anyTeacher = await db.Teachers.Include(c => c.OrgPerson)
+                var anyTeacher = await db.Teachers
+                    .Include(c => c.OrgPerson)
                             .AnyAsync(c => c.OrgPerson.IdNum == param.username && c.Password == param.password);
 
                 var anyParent = await db.Students
-                            .AnyAsync(c => c.IdNumber2 == param.username && c.ParentsPassword == param.password);
+                            .AnyAsync(c => c.IdNumber2 == param.username && c.ParentsPassword == param.password && c.ParentAccess);
 
                 var anyStudent = await db.Students
-                            .AnyAsync(c => c.IdNumber2 == param.username && c.StudentPassword == param.password);
+                            .AnyAsync(c => c.IdNumber2 == param.username && c.StudentPassword == param.password && c.StudentAccess);
 
                 var userType = CategoryAuthorizeState.none;
                 var userFullname = "";
@@ -1106,16 +1115,21 @@ namespace SCMR_Api.Controllers
                     return this.UnSuccessFunction(" نام کاربری و یا کلمه عبور شما اشتباه است و یا شما مجوز مشاهده این " + catTypeTitle + " را ندارید!");
                 }
 
-                if (cat.Items.Any(c => c.AuthorizedUsername == param.username))
+                if (cat.Items.Any(c => c.AuthorizedUsername == param.username) || cat.Items.SelectMany(c => c.ItemAttribute.Where(l => l.Attribute.IsMeliCode).Select(l => l.AttrubuteValue)).Contains(param.username))
                 {
                     return this.UnSuccessFunction("داده ای با این نام کاربری قبلا در سیستم ثبت شده است");
                 }
+
+                var gradeId = 0;
+                var classId = 0;
 
                 if (cat.Type == CategoryTotalType.onlineExam && cat.AuthorizeState == CategoryAuthorizeState.PMA)
                 {
                     var studentStdClassMng = await db.Students.Where(c => c.IdNumber2 == param.username)
                         .SelectMany(c => c.StdClassMngs).Where(c => c.IsActive).FirstOrDefaultAsync();
 
+                    gradeId = studentStdClassMng.GradeId;
+                    classId = studentStdClassMng.ClassId;
 
                     if (cat.GradeId != studentStdClassMng.GradeId || (cat.ClassId.HasValue && cat.ClassId.Value != studentStdClassMng.ClassId))
                     {
@@ -1123,13 +1137,27 @@ namespace SCMR_Api.Controllers
                     }
                 }
 
-                var jwt = BuildToken(param.username, 15);
+                await db.RegisterItemLogins.AddAsync(new RegisterItemLogin
+                {
+                    CategoryId = cat.Id,
+                    Date = DateTime.Now,
+                    FullName = userFullname,
+                    Username = param.username,
+                    Password = param.password,
+                    CategoryAuthorizeState = Enum.GetName(typeof(CategoryAuthorizeState), cat.AuthorizeState),
+                    UserType = Enum.GetName(typeof(CategoryAuthorizeState), userType),
+                    GradeId = gradeId,
+                    ClassId = classId,
+                    IP = accessor.HttpContext.Connection.RemoteIpAddress.ToString()
+                });
+
+                await db.SaveChangesAsync();
 
                 return this.SuccessFunction(data: new
                 {
-                    jwt = jwt,
                     userType = userType,
-                    userFullname = userFullname
+                    userFullname = userFullname,
+                    userName = param.username
                 });
             }
             catch (System.Exception e)
@@ -1232,6 +1260,7 @@ namespace SCMR_Api.Controllers
 
                 if (itemWithAttrs == null)
                 {
+                    DeleteFiles(uploadedFiles);
                     return this.UnSuccessFunction("Incomplate Data");
                 }
 
@@ -1247,9 +1276,17 @@ namespace SCMR_Api.Controllers
                     AuthorizedFullName = itemWithAttrs.authorizedFullName
                 };
 
+                var cat = await db.Categories
+                    .Include(c => c.Attributes)
+                    .Include(c => c.Items)
+                        .ThenInclude(c => c.ItemAttribute)
+                .FirstOrDefaultAsync(c => c.Id == itemWithAttrs.catId);
+
+                var catAttrIds = cat.Attributes.Select(c => c.Id);
+
                 var itemAttrs = new List<ItemAttribute>();
 
-                foreach (var itemAttr in itemWithAttrs.itemAttrs)
+                foreach (var itemAttr in itemWithAttrs.itemAttrs.Where(c => catAttrIds.Contains(c.AttributeId)))
                 {
                     var filepath = "";
                     if (itemAttr.AttributeFilePath.Equals("1"))
@@ -1261,12 +1298,33 @@ namespace SCMR_Api.Controllers
                         }
                     }
 
+                    var attrValue = itemAttr.AttrubuteValue.Trim().PersianToEnglishDigit();
+
                     itemAttrs.Add(new ItemAttribute
                     {
                         AttributeId = itemAttr.AttributeId,
-                        AttrubuteValue = itemAttr.AttrubuteValue,
+                        AttrubuteValue = attrValue,
                         AttributeFilePath = filepath
                     });
+                }
+
+                var catUniqAttrIds = cat.Attributes.Where(c => c.IsUniq).Select(c => c.Id);
+
+                var isAnySameValue = false;
+
+                foreach (var shouldCheckItemAttr in itemAttrs.Where(c => catUniqAttrIds.Contains(c.AttributeId)))
+                {
+                    isAnySameValue = cat.Items.SelectMany(c => c.ItemAttribute)
+                        .Where(c => c.AttributeId == shouldCheckItemAttr.AttributeId)
+                    .Any(c => c.AttrubuteValue == shouldCheckItemAttr.AttrubuteValue);
+
+                    if (isAnySameValue) { break; }
+                }
+
+                if (isAnySameValue)
+                {
+                    DeleteFiles(uploadedFiles);
+                    return this.UnSuccessFunction("برخی از داده های شما به صورت تکراری وارد شده است!");
                 }
 
                 item.ItemAttribute = itemAttrs;
@@ -1280,10 +1338,6 @@ namespace SCMR_Api.Controllers
                 await db.SaveChangesAsync();
 
                 var itemId = item.Id;
-
-                var cat = await db.Categories
-                    .Include(c => c.Attributes)
-                .FirstOrDefaultAsync(c => c.Id == itemWithAttrs.catId);
 
                 var scoreString = "";
 
@@ -1313,19 +1367,21 @@ namespace SCMR_Api.Controllers
             }
             catch (System.Exception e)
             {
-                if (uploadedFiles.Any())
-                {
-                    uploadedFiles.ForEach(file =>
-                    {
-                        try
-                        {
-                            System.IO.File.Delete(Path.Combine(hostingEnvironment.ContentRootPath, file.filePath));
-                        }
-                        catch { }
-                    });
-                }
+                DeleteFiles(uploadedFiles);
                 return this.CatchFunction(e);
             }
+        }
+
+        private void DeleteFiles(List<UploadedFileType> files)
+        {
+            files.ForEach(file =>
+            {
+                try
+                {
+                    System.IO.File.Delete(Path.Combine(hostingEnvironment.ContentRootPath, file.filePath));
+                }
+                catch { }
+            });
         }
 
         [HttpPost]
@@ -1342,7 +1398,8 @@ namespace SCMR_Api.Controllers
                     {
                         foreach (var itemAttr in item.ItemAttribute)
                         {
-                            if (itemAttr.AttributeId == uniqAttrParams.attrId && itemAttr.AttrubuteValue.Equals(uniqAttrParams.val))
+                            if (itemAttr.AttributeId == uniqAttrParams.attrId &&
+                                itemAttr.AttrubuteValue.Trim().PersianToEnglishDigit().Equals(uniqAttrParams.val.Trim().PersianToEnglishDigit()))
                             {
                                 return this.SuccessFunction();
                             }
@@ -1368,6 +1425,8 @@ namespace SCMR_Api.Controllers
                 .Where(c => c.CategoryId == catId)
                     .Include(c => c.ItemAttribute)
                         .ThenInclude(c => c.Attribute)
+                            .ThenInclude(m => m.Question)
+                                .ThenInclude(m => m.QuestionOptions)
                 .ToListAsync();
 
                 var cat = await db.Categories.Include(c => c.Attributes).SingleAsync(c => c.Id == catId);
@@ -1423,29 +1482,27 @@ namespace SCMR_Api.Controllers
 
                     worksheet.Cells[1, 1].Value = "ردیف";
                     worksheet.Cells[1, 2].Value = "عنوان";
-                    worksheet.Cells[1, 3].Value = "وضعیت";
-                    worksheet.Cells[1, 4].Value = "تگ ها";
-                    worksheet.Cells[1, 5].Value = "کد رهگیری";
-                    worksheet.Cells[1, 6].Value = "واحد";
-                    worksheet.Cells[1, 7].Value = cat.Type == CategoryTotalType.registerForm ? "نمون برگ" : "آزمون آنلاین";
-                    worksheet.Cells[1, 8].Value = cat.Type == CategoryTotalType.registerForm ? "امتیاز" : "نمره";
+                    worksheet.Cells[1, 3].Value = "کد رهگیری";
+                    worksheet.Cells[1, 4].Value = "تاریخ";
+                    worksheet.Cells[1, 5].Value = cat.Type == CategoryTotalType.registerForm ? "نمون برگ" : "آزمون آنلاین";
+                    worksheet.Cells[1, 6].Value = cat.Type == CategoryTotalType.registerForm ? "امتیاز" : "نمره";
 
-                    var staticColsCount = 8;
+                    var staticColsCount = 6;
 
                     if (cat.Type == CategoryTotalType.onlineExam)
                     {
-                        worksheet.Cells[1, 9].Value = "غلط";
-                        worksheet.Cells[1, 10].Value = "صحیح";
-                        worksheet.Cells[1, 11].Value = "سفید";
+                        worksheet.Cells[1, 7].Value = "غلط";
+                        worksheet.Cells[1, 8].Value = "صحیح";
+                        worksheet.Cells[1, 9].Value = "سفید";
 
-                        staticColsCount = 11;
+                        staticColsCount = 9;
 
                         if (cat.CalculateNegativeScore)
                         {
-                            worksheet.Cells[1, 12].Value = "درصد نمره";
-                            worksheet.Cells[1, 13].Value = "نمره از 20";
+                            worksheet.Cells[1, 10].Value = "درصد نمره";
+                            worksheet.Cells[1, 11].Value = "نمره از 20";
 
-                            staticColsCount = 13;
+                            staticColsCount = 11;
                         }
                     }
 
@@ -1458,14 +1515,22 @@ namespace SCMR_Api.Controllers
 
                     foreach (var (item, index) in items.WithIndex())
                     {
+                        var itemScore = item.getTotalScoreFunction(item.ItemAttribute, cat.CalculateNegativeScore);
+
+                        var catTotalScore = cat.getTotalScore(
+                            cat.Attributes.ToList(),
+                            cat.UseLimitedRandomQuestionNumber,
+                            cat.VeryHardQuestionNumber,
+                            cat.HardQuestionNumber,
+                            cat.ModerateQuestionNumber,
+                            cat.EasyQuestionNumber);
+
                         worksheet.Cells[1 + (index + 1), 1].Value = item.Id;
-                        worksheet.Cells[1 + (index + 1), 2].Value = item.Title;
-                        worksheet.Cells[1 + (index + 1), 3].Value = item.IsActive ? "فعال" : "غیر فعال";
-                        worksheet.Cells[1 + (index + 1), 4].Value = item.Tags;
-                        worksheet.Cells[1 + (index + 1), 5].Value = item.RahCode;
-                        worksheet.Cells[1 + (index + 1), 6].Value = item.UnitString;
-                        worksheet.Cells[1 + (index + 1), 7].Value = item.CategoryString;
-                        worksheet.Cells[1 + (index + 1), 8].Value = $"{getTotalScoreForItem(attrs, item.ItemAttribute.ToList())}/{cat.getTotalScore(cat.Attributes.ToList(), cat.UseLimitedRandomQuestionNumber, cat.VeryHardQuestionNumber, cat.HardQuestionNumber, cat.ModerateQuestionNumber, cat.EasyQuestionNumber)}";
+                        worksheet.Cells[1 + (index + 1), 2].Value = item.AuthorizedUsername == "---" ? item.Title : $"{item.AuthorizedFullName} - {item.AuthorizedUsername}";
+                        worksheet.Cells[1 + (index + 1), 3].Value = item.RahCode;
+                        worksheet.Cells[1 + (index + 1), 4].Value = item.DateAdd.Value.ToPersianDateWithTime();
+                        worksheet.Cells[1 + (index + 1), 5].Value = item.CategoryString;
+                        worksheet.Cells[1 + (index + 1), 6].Value = $"{itemScore}/{catTotalScore}";
 
 
                         var trueCount = 0;
@@ -1568,7 +1633,7 @@ namespace SCMR_Api.Controllers
                                 }
                                 else
                                 {
-                                    worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Value = itemAttr.AttrubuteValue;
+                                    worksheet.Cells[1 + (index + 1), staticColsCount + (i + 1)].Value = itemAttr.AttrubuteValue.HtmlToPlaneText();
                                 }
 
                             }
@@ -1577,16 +1642,16 @@ namespace SCMR_Api.Controllers
 
                         if (cat.Type == CategoryTotalType.onlineExam)
                         {
-                            worksheet.Cells[1 + (index + 1), 9].Value = falseCount;
-                            worksheet.Cells[1 + (index + 1), 10].Value = trueCount;
-                            worksheet.Cells[1 + (index + 1), 11].Value = blankCount;
+                            worksheet.Cells[1 + (index + 1), 7].Value = falseCount;
+                            worksheet.Cells[1 + (index + 1), 8].Value = trueCount;
+                            worksheet.Cells[1 + (index + 1), 9].Value = blankCount;
 
                             if (cat.CalculateNegativeScore)
                             {
                                 var scorePrecent = (double)((trueCount * 3) - (falseCount)) / ((trueCount + falseCount + blankCount) * 3);
 
-                                worksheet.Cells[1 + (index + 1), 12].Value = Math.Round(scorePrecent * 100, 2);
-                                worksheet.Cells[1 + (index + 1), 13].Value = Math.Round((scorePrecent * 100) / 5, 2);
+                                worksheet.Cells[1 + (index + 1), 10].Value = Math.Round(scorePrecent * 100, 2);
+                                worksheet.Cells[1 + (index + 1), 11].Value = Math.Round((scorePrecent * 100) / 5, 2);
                             }
                         }
                     }

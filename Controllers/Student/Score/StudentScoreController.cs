@@ -196,6 +196,32 @@ namespace SCMR_Api.Controllers
             }
         }
 
+
+        [HttpPost]
+        public async Task<IActionResult> getSumOfStudentScore([FromBody] int studentId)
+        {
+            try
+            {
+                var studentActiveStdClassMng = await db.StdClassMngs.Where(c => c.StudentId == studentId && c.IsActive).FirstOrDefaultAsync();
+
+                if (studentActiveStdClassMng == null) {
+                    return this.SuccessFunction(data: "---");
+                }
+
+                var scoreSum = await db.StudentScores.Where(c => c.StdClassMngId == studentActiveStdClassMng.Id).SumAsync(c => c.Value);
+
+                var scoreSumString = scoreSum.FormatNumberEvery3digit();
+
+                return this.DataFunction(true, scoreSumString);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+
+
         [HttpPost]
         public async Task<IActionResult> getStudentScore([FromBody] int id)
         {

@@ -155,6 +155,7 @@ namespace SCMR_Api.Controllers
                 exam.IsCancelled = examAddParam.exam.IsCancelled;
                 exam.CancellReason = examAddParam.exam.CancellReason;
                 exam.WorkbookId = examAddParam.exam.WorkbookId;
+                exam.ShowAvgOfExam = examAddParam.exam.ShowAvgOfExam;
 
                 if (await db.ClassBooks.AnyAsync(c => c.ExamId == exam.Id))
                 {
@@ -530,59 +531,14 @@ namespace SCMR_Api.Controllers
                             isOnlineExam = c.OnlineExamId.HasValue,
                             OnlineExamId = c.OnlineExamId,
                             canShowDetail = true,
-                            isFullDataLoaded = true
+                            isFullDataLoaded = true,
+                            showAvgOfExam = c.ShowAvgOfExam
                         })
                 .ToListAsync();
 
                 ex = ex.OrderByDescending(c => c.Date).ToList();
 
                 return this.DataFunction(true, ex);
-            }
-            catch (System.Exception e)
-            {
-                return this.CatchFunction(e);
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> getOnlineExamFullData([FromBody] int catId)
-        {
-            try
-            {
-                var cat = await db.Categories
-                .Where(c => c.Id == catId)
-                    .Include(c => c.Attributes)
-                    .Include(c => c.Items)
-                        .ThenInclude(c => c.ItemAttribute)
-                            .ThenInclude(c => c.Attribute)
-                                .ThenInclude(c => c.Question)
-                                    .ThenInclude(c => c.QuestionOptions)
-                .Select(c => new
-                {
-                    Id = $"OE{c.Id}",
-                    Name = c.Title,
-                    dateString = c.DatePublish.Value.ToPersianDate(),
-                    courseName = c.Course != null ? c.Course.Name : "",
-                    avgInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Avg),
-                    minInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Min),
-                    maxInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Max),
-                    CourseId = c.CourseId.HasValue ? c.CourseId.Value : 0,
-                    ExamTypeId = c.ExamTypeId.HasValue ? c.ExamTypeId.Value : 0,
-                    Date = c.DatePublish.Value,
-                    canShowByWorkBook = c.canShowByWorkBook(c.Workbook),
-                    WorkbookId = c.WorkbookId,
-                    TopScore = c.getTotalScore(c.Attributes.ToList(),
-                        c.UseLimitedRandomQuestionNumber,
-                        c.VeryHardQuestionNumber,
-                        c.HardQuestionNumber,
-                        c.ModerateQuestionNumber,
-                        c.EasyQuestionNumber),
-                    isOnlineExam = true,
-                    canShowDetail = c.HaveInfo && c.IsInfoShow ? true : false,
-                    isFullDataLoaded = true
-                }).FirstOrDefaultAsync();
-
-                return this.DataFunction(true, cat);
             }
             catch (System.Exception e)
             {
@@ -617,7 +573,7 @@ namespace SCMR_Api.Controllers
                             Result = c.Result
                         })
                 .ToListAsync();
-                
+
                 ex = ex.OrderByDescending(c => c.Date).ToList();
 
                 return this.DataFunction(true, ex);
@@ -645,86 +601,30 @@ namespace SCMR_Api.Controllers
 
         [HttpPost]
         [Role(RolePrefix.View, "ExamAnalize")]
-        public async Task<IActionResult> getExamAnalizeData([FromBody] string examId)
+        public async Task<IActionResult> getExamAnalizeData([FromBody] int examId)
         {
             try
             {
-                var examType = examId.StartsWith("OE") ? "OnlineExam" : "Exam";
-                var Id = examType == "OnlineExam" ? int.Parse(examId.Remove(0, 2)) : int.Parse(examId);
-
-                dynamic exam = null;
-
-                if (examType == "Exam")
-                {
-                    exam = await db.Exams.Where(c => c.Id == Id)
-                        .Select(c => new
-                        {
-                            Id = c.Id,
-                            Name = c.Name,
-                            gradeName = c.Grade.Name,
-                            className = c.Class.Name,
-                            ExamScores = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer),
-                            students = c.ExamScores.Select(l => l.Student).ToList(),
-                            TopScore = c.TopScore,
-                            Source = c.Source,
-                            avgInExam = c.getMin_Max_Avg_InExam(c.ExamScores.ToList(), ScoreType.Avg),
-                            minInExam = c.getMin_Max_Avg_InExam(c.ExamScores.ToList(), ScoreType.Min),
-                            maxInExam = c.getMin_Max_Avg_InExam(c.ExamScores.ToList(), ScoreType.Max),
-                            ClassId = c.ClassId,
-                            haveResult = c.Result,
-                            isOE = false
-                        })
-                    .FirstOrDefaultAsync();
-                }
-
-                if (examType == "OnlineExam")
-                {
-                    var students = await db.Students.ToListAsync();
-
-                    exam = db.Categories
-                    .Where(c => c.Type == CategoryTotalType.onlineExam && c.Id == Id)
-                        .Include(c => c.Attributes)
-                        .Include(c => c.Items)
-                            .ThenInclude(c => c.ItemAttribute)
-                                .ThenInclude(c => c.Attribute)
-                                    .ThenInclude(c => c.Question)
-                                        .ThenInclude(c => c.QuestionOptions)
+                var exam = await db.Exams.Where(c => c.Id == examId)
                     .Select(c => new
                     {
-                        Id = $"OE{c.Id}",
-                        Name = c.Title,
-                        gradeName = c.Grade != null ? c.Grade.Name : "",
-                        className = c.Class != null ? c.Class.Name : "",
-                        ExamScores = c.Items.Select(item => new
-                        {
-                            Id = $"IT{item.Id}",
-                            ExamId = $"OE{c.Id}",
-                            StudentId = students.FirstOrDefault(std => item.ItemAttribute.Where(v => v.Attribute.IsMeliCode).Select(p => p.AttrubuteValue.Trim().PersianToEnglishDigit()).Contains(std.IdNumber2.Trim().PersianToEnglishDigit())) != null ? students.FirstOrDefault(std => item.ItemAttribute.Where(v => v.Attribute.IsMeliCode).Select(p => p.AttrubuteValue.Trim().PersianToEnglishDigit()).Contains(std.IdNumber2.Trim().PersianToEnglishDigit())).Id : 0,
-                            Score = item.getTotalScoreFunction(item.ItemAttribute, item.Category.CalculateNegativeScore),
-                            TopScore = c.getTotalScore(c.Attributes.ToList(),
-                                    c.UseLimitedRandomQuestionNumber,
-                                    c.VeryHardQuestionNumber,
-                                    c.HardQuestionNumber,
-                                    c.ModerateQuestionNumber,
-                                    c.EasyQuestionNumber)
-                        }).ToList(),
-                        students = students.Where(l => c.Items.SelectMany(f => f.ItemAttribute).Where(v => v.Attribute.IsMeliCode).Select(p => p.AttrubuteValue.Trim().PersianToEnglishDigit()).Contains(l.IdNumber2.Trim().PersianToEnglishDigit())).ToList(),
-                        TopScore = c.getTotalScore(c.Attributes.ToList(),
-                                    c.UseLimitedRandomQuestionNumber,
-                                    c.VeryHardQuestionNumber,
-                                    c.HardQuestionNumber,
-                                    c.ModerateQuestionNumber,
-                                    c.EasyQuestionNumber),
-                        Source = "---",
-                        avgInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Avg),
-                        minInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Min),
-                        maxInExam = c.getMin_Avg_MaxInOnlineExam(c.Items.ToList(), ScoreType.Max),
-                        ClassId = c.ClassId.HasValue ? c.ClassId.Value : 0,
-                        haveResult = true,
-                        isOE = true
+                        Id = c.Id,
+                        Name = c.Name,
+                        gradeName = c.Grade.Name,
+                        className = c.Class.Name,
+                        ExamScores = c.ExamScores.Where(l => l.State == ExamScoreState.Hazer),
+                        students = c.ExamScores.Select(l => l.Student).ToList(),
+                        TopScore = c.TopScore,
+                        Source = c.Source,
+                        avgInExam = c.getMin_Max_Avg_InExam(c.ExamScores.ToList(), ScoreType.Avg),
+                        minInExam = c.getMin_Max_Avg_InExam(c.ExamScores.ToList(), ScoreType.Min),
+                        maxInExam = c.getMin_Max_Avg_InExam(c.ExamScores.ToList(), ScoreType.Max),
+                        ClassId = c.ClassId,
+                        GradeId = c.GradeId,
+                        haveResult = c.Result,
+                        isOE = false
                     })
-                    .First();
-                }
+                .FirstOrDefaultAsync();
 
 
                 if (!exam.haveResult)
@@ -732,14 +632,12 @@ namespace SCMR_Api.Controllers
                     return this.UnSuccessFunction("این آزمون اعلام نتایج نشده است");
                 }
 
-                int classId = exam.ClassId;
-
                 var studentTypes = await db.StudentTypes
                     .Select(c => new
                     {
                         Id = c.Id,
                         Name = c.Name,
-                        students = c.StdClassMngs.Where(h => h.ClassId == classId).Select(l => l.Student)
+                        students = exam.students.Where(h => h.StdClassMngs.Select(f => f.StudentTypeId).Contains(c.Id))
                     })
                 .ToListAsync();
 

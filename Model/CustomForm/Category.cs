@@ -98,6 +98,7 @@ namespace SCMR_Api.Model
 
         public bool IsArchived { get; set; }
 
+        public bool IsBackStepAllowed { get; set; }
 
         public double TopScore { get; set; }
         public bool IsStaticDataSaved { get; set; }
@@ -113,6 +114,9 @@ namespace SCMR_Api.Model
         public virtual IList<Category> Children { get; set; }
         public virtual IList<Item> Items { get; set; }
         public virtual IList<Attribute> Attributes { get; set; }
+
+
+        public virtual IList<RegisterItemLogin> RegisterItemLogins { get; set; }
 
 
         [ForeignKey("GradeId")]

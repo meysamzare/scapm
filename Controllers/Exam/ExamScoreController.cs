@@ -631,7 +631,7 @@ namespace SCMR_Api.Controllers
             try
             {
                 var headers = new List<string>();
-                var averagesForCourses = new List<double>();
+                var averagesForCourses = new List<string>();
 
                 var courseRatingsInClass = new List<int>();
                 var courseRatingsInGrade = new List<int>();
@@ -686,7 +686,7 @@ namespace SCMR_Api.Controllers
                 var studentsInClass = stds.Where(c => studentsIdInClass.Contains(c.Id)).ToList();
 
                 headers = student.courseAvgs.Select(c => c.CourseName).ToList();
-                averagesForCourses = student.courseAvgs.Select(c => c.Average).ToList();
+                averagesForCourses = student.courseAvgs.Select(c => c.Average.getFixed3Number()).ToList();
                 totalAvg = student.totalAvg;
                 topTotalAvrageGrade = studentsInGrade.Select(c => c.totalAvg).OrderByDescending(c => c).First();
                 avgOfTotalAvrageGrade = studentsInGrade.Average(c => c.totalAvg);

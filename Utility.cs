@@ -23,6 +23,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 using System.ComponentModel.DataAnnotations;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace SCMR_Api
 {
@@ -333,6 +334,28 @@ namespace SCMR_Api
     public static class Utility
     {
 
+        public static string HtmlToPlaneText(this string htmlString, string htmlPlaceHolder = " ")
+        {
+            const string pattern = @"<.*?>";
+            string sOut = Regex.Replace(htmlString, pattern, htmlPlaceHolder, RegexOptions.Singleline);
+            sOut = sOut.Replace("&nbsp;", String.Empty);
+            sOut = sOut.Replace("&amp;", "&");
+            sOut = sOut.Replace("&gt;", ">");
+            sOut = sOut.Replace("&lt;", "<");
+            sOut = sOut.Replace("&zwnj;", String.Empty);
+            return sOut;
+        }
+
+        public static string FormatNumberEvery3digit(this int number)
+        {
+            return String.Format("{0:#,###,###.##}", number);
+        }
+
+        public static string getFixed3Number(this object number)
+        {
+            return String.Format("{0:F3}", number);
+        }
+
 
         public static JsonResult SuccessFunction(this Controller c)
         {
@@ -597,7 +620,11 @@ namespace SCMR_Api
             };
             foreach (var item in persianStr)
             {
-                persianStr = persianStr.Replace(item, LettersDictionary[item]);
+                try
+                {
+                    persianStr = persianStr.Replace(item, LettersDictionary[item]);
+                }
+                catch { }
             }
             return persianStr;
         }

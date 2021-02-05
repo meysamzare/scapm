@@ -189,6 +189,7 @@ namespace SCMR_Api.Controllers
 
                 cat.ShowScoreAfterDone = addCategory.showScoreAfterDone;
                 cat.CalculateNegativeScore = addCategory.calculateNegativeScore;
+                cat.IsBackStepAllowed = addCategory.isBackStepAllowed;
 
                 DateTime datepublish = addCategory.datePublish;
                 if (cat.DatePublish != datepublish)
@@ -646,7 +647,23 @@ namespace SCMR_Api.Controllers
                     return this.UnSuccessFunction("دانش آموزی برای این آزمون مشخص نشد!");
                 }
 
-                var peresentStuedntsMeliCode = cat.Items.SelectMany(c => c.ItemAttribute).Where(c => c.Attribute.IsMeliCode).Select(c => c.AttrubuteValue);
+                var peresentStuedntsMeliCode = new List<string>();
+
+                var isCatHaveMeliCodeAttribute = cat.Attributes.Any(c => c.IsMeliCode);
+                var isCatHaveAuthrization = cat.AuthorizeState != CategoryAuthorizeState.none;
+
+                if (isCatHaveMeliCodeAttribute)
+                {
+                    peresentStuedntsMeliCode = cat.Items.SelectMany(c => c.ItemAttribute).Where(c => c.Attribute.IsMeliCode).Select(c => c.AttrubuteValue.Trim().PersianToEnglishDigit()).ToList();
+                }
+                else if (isCatHaveAuthrization)
+                {
+                    peresentStuedntsMeliCode = cat.Items.Select(c => c.AuthorizedUsername.Trim().PersianToEnglishDigit()).ToList();
+                }
+                else
+                {
+                    return this.UnSuccessFunction("خطا در احراز هویت داده های ثبت شده");
+                }
 
                 var mustToBeAddedItems = new List<Item>();
 
@@ -698,7 +715,19 @@ namespace SCMR_Api.Controllers
                     var dbItem = await db.Items.FirstOrDefaultAsync(c => c.Id == item.Id);
 
                     dbItem.Score = item.getTotalScoreFunction(item.ItemAttribute, cat.CalculateNegativeScore);
-                    dbItem.MeliCode = item.ItemAttribute.FirstOrDefault(c => c.Attribute.IsMeliCode).AttrubuteValue.Trim();
+
+                    var itemMeliCode = "";
+
+                    if (isCatHaveMeliCodeAttribute)
+                    {
+                        itemMeliCode = item.ItemAttribute.FirstOrDefault(c => c.Attribute.IsMeliCode).AttrubuteValue.Trim().PersianToEnglishDigit();
+                    }
+                    else
+                    {
+                        itemMeliCode = item.AuthorizedUsername.Trim().PersianToEnglishDigit();
+                    }
+
+                    dbItem.MeliCode = itemMeliCode;
 
                     dbItem.TrueCount = item.ItemAttribute.Where(c => c.getPaperState(c, c.Attribute) == ItemAttributePaperState.True).Count();
                     dbItem.FalseCount = item.ItemAttribute.Where(c => c.getPaperState(c, c.Attribute) == ItemAttributePaperState.False).Count();
@@ -712,7 +741,7 @@ namespace SCMR_Api.Controllers
 
                 if (param.deleteUnknownDatas)
                 {
-                    var meliCodes = studentsList.Select(c => c.IdNumber2);
+                    var meliCodes = studentsList.Select(c => c.IdNumber2.Trim());
 
                     var itemsToDelete = cat.Items.Where(c => !meliCodes.Contains(c.MeliCode));
 
@@ -792,7 +821,8 @@ namespace SCMR_Api.Controllers
                         ExamScores = examScores,
                         TopScore = topScore,
                         TeacherId = cat.Course.TeacherId,
-                        Source = "---"
+                        Source = "---",
+                        ShowAvgOfExam = true
                     };
 
                     await db.Exams.AddAsync(exam);
@@ -952,6 +982,74 @@ namespace SCMR_Api.Controllers
                 .ToListAsync();
 
                 return this.SuccessFunction(data: cats);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+
+        [HttpPost]
+        public async Task<IActionResult> getRegisterItemLogins([FromBody] int catId)
+        {
+            try
+            {
+                var cat = await db.Categories.FirstOrDefaultAsync(c => c.Id == catId);
+
+                var logins = await db.RegisterItemLogins.Where(c => c.CategoryId == catId)
+                .OrderByDescending(c => c.Date)
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        FullName = c.FullName,
+                        Username = c.Username,
+                        CategoryAuthorizeState = c.CategoryAuthorizeState,
+                        UserType = c.UserType,
+                        DateString = c.Date.ToPersianDateWithTime(),
+                        GradeId = c.GradeId,
+                        ClassId = c.ClassId,
+                        ip = c.IP,
+                        absence = false
+                    })
+                .ToListAsync();
+
+                if (cat.AuthorizeState == CategoryAuthorizeState.PMA)
+                {
+                    var stdClassMngs = db.StdClassMngs.Where(c => c.GradeId == cat.GradeId && c.IsActive);
+
+                    if (cat.ClassId.HasValue)
+                    {
+                        stdClassMngs = stdClassMngs.Where(c => c.ClassId == cat.ClassId.Value);
+                    }
+
+                    var students = await stdClassMngs.Select(c => c.Student)
+                        .Distinct()
+                    .ToListAsync();
+
+                    var studentsMeliCode = students.Select(c => c.IdNumber2.Trim().PersianToEnglishDigit());
+
+                    studentsMeliCode.Where(c => !logins.Select(l => l.Username).Contains(c)).ToList().ForEach(absenceMeliCode =>
+                    {
+                        var std = students.FirstOrDefault(c => c.IdNumber2 == absenceMeliCode);
+
+                        logins.Add(new
+                        {
+                            Id = (long)0,
+                            FullName = std.LastName + " - " + std.Name,
+                            Username = absenceMeliCode,
+                            CategoryAuthorizeState = Enum.GetName(typeof(CategoryAuthorizeState), cat.AuthorizeState),
+                            UserType = "PMA",
+                            DateString = "غائب",
+                            GradeId = 0,
+                            ClassId = 0,
+                            ip = "---",
+                            absence = true
+                        });
+                    });
+                }
+
+                return this.DataFunction(true, logins);
             }
             catch (System.Exception e)
             {
@@ -1203,6 +1301,8 @@ namespace SCMR_Api.Controllers
         {
             try
             {
+                var removingFilePaths = new List<string>();
+
                 foreach (var id in ids)
                 {
                     if (id != 0)
@@ -1235,7 +1335,9 @@ namespace SCMR_Api.Controllers
                         }
                         if (cat.Items.Any())
                         {
-                            db.RemoveRange(cat.Items.SelectMany(c => c.ItemAttribute));
+                            var itemAttrs = cat.Items.SelectMany(c => c.ItemAttribute);
+                            removingFilePaths = itemAttrs.Select(c => c.AttrubuteValue).ToList();
+                            db.RemoveRange(itemAttrs);
                             db.RemoveRange(cat.Items);
                         }
 
@@ -1250,6 +1352,15 @@ namespace SCMR_Api.Controllers
                 }
 
                 await db.SaveChangesAsync();
+
+                removingFilePaths.ForEach(path =>
+                {
+                    try
+                    {
+                        System.IO.File.Delete(path);
+                    }
+                    catch { }
+                });
 
 
                 return this.SuccessFunction();
@@ -1448,6 +1559,7 @@ namespace SCMR_Api.Controllers
         public bool showScoreAfterDone { get; set; }
 
         public bool calculateNegativeScore { get; set; }
+        public bool isBackStepAllowed { get; set; }
 
 
         public bool useLimitedRandomQuestionNumber { get; set; }

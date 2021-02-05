@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.IO;
@@ -1306,6 +1307,78 @@ namespace SCMR_Api.Controllers
                 }
 
                 return this.DataFunction(true, access);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+
+        [HttpPost]
+        public async Task<IActionResult> IsUserAccessByFinance([FromBody] int stdId)
+        {
+            try
+            {
+                dynamic obj = new ExpandoObject();
+                obj.haveAccess = true;
+                obj.message = "";
+
+                var student = await db.Students
+                    .Include(c => c.StdClassMngs)
+                .FirstOrDefaultAsync(c => c.Id == stdId);
+
+                if (student.IdNumber2 != User.Identity.Name)
+                {
+                    obj.haveAccess = false;
+                    obj.message = "UnAuthorized";
+
+                    return this.DataFunction(true, (object)obj);
+                }
+
+                var activeStdClassMng = student.StdClassMngs.FirstOrDefault(c => c.IsActive);
+
+                if (activeStdClassMng != null)
+                {
+                    var payments = db.StdPayments
+                        .Include(c => c.Contract)
+                    .Where(c => c.StdClassMngId == activeStdClassMng.Id);
+
+                    var isStudentAccessByFinance = true;
+
+                    if (await payments.AnyAsync())
+                    {
+                        var contracts = await payments.Select(c => c.Contract).Distinct().ToListAsync();
+
+                        foreach (var contract in contracts)
+                        {
+                            var contractPrice = contract.Price;
+
+                            var stdPaymentPrice = payments.Where(c => c.ContractId == contract.Id).Sum(c => c.Price);
+
+                            if (stdPaymentPrice < contractPrice)
+                            {
+                                isStudentAccessByFinance = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!isStudentAccessByFinance || (int)activeStdClassMng.PayrollState == 1)
+                    {
+                        obj.haveAccess = false;
+                        obj.message = "به دلیل نقص پرونده مالی، شما امکان ورود به سیستم را ندارید";
+                        return this.DataFunction(true, (object)obj);
+                    }
+
+                    obj.haveAccess = true;
+                    return this.DataFunction(true, (object)obj);
+                }
+
+                obj.haveAccess = false;
+                obj.message = "سال تحصیلی برای دانش آموز مشخص نشده است";
+
+                return this.DataFunction(true, (object)obj);
             }
             catch (System.Exception e)
             {

@@ -3,19 +3,21 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20201231164958_initUpdate47_6")]
+    partial class initUpdate47_6
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "2.2.6-servicing-10079")
+                .HasAnnotation("ProductVersion", "2.2.0-rtm-35687")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
                 .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
@@ -687,8 +689,6 @@ namespace SCMR_Api.Migrations
                     b.Property<string>("Shobe")
                         .HasColumnName("StdPayment.BankSection");
 
-                    b.Property<int>("StdClassMngId");
-
                     b.Property<int>("StudentId")
                         .HasColumnName("StdPayment.Student");
 
@@ -697,8 +697,6 @@ namespace SCMR_Api.Migrations
                     b.HasIndex("ContractId");
 
                     b.HasIndex("PaymentTypeId");
-
-                    b.HasIndex("StdClassMngId");
 
                     b.HasIndex("StudentId");
 
@@ -1639,39 +1637,6 @@ namespace SCMR_Api.Migrations
                     b.HasIndex("QuestionId");
 
                     b.ToTable("QuestionOptions");
-                });
-
-            modelBuilder.Entity("SCMR_Api.Model.RegisterItemLogin", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-                    b.Property<string>("CategoryAuthorizeState");
-
-                    b.Property<int>("CategoryId");
-
-                    b.Property<int>("ClassId");
-
-                    b.Property<DateTime>("Date");
-
-                    b.Property<string>("FullName");
-
-                    b.Property<int>("GradeId");
-
-                    b.Property<string>("IP");
-
-                    b.Property<string>("Password");
-
-                    b.Property<string>("UserType");
-
-                    b.Property<string>("Username");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.ToTable("RegisterItemLogins");
                 });
 
             modelBuilder.Entity("SCMR_Api.Model.Role", b =>
@@ -3010,10 +2975,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2021, 1, 18, 21, 36, 55, 54, DateTimeKind.Local).AddTicks(4949),
+                            DateAdd = new DateTime(2020, 12, 31, 20, 19, 57, 293, DateTimeKind.Local).AddTicks(2450),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("53c582ae-9725-4591-9bac-2af0a101c444"),
+                            GId = new Guid("385adccd-5c71-456e-8ada-5acbe24c3ef8"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",
@@ -3372,11 +3337,6 @@ namespace SCMR_Api.Migrations
                         .HasForeignKey("PaymentTypeId")
                         .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("SCMR_Api.Model.StdClassMng", "StdClassMng")
-                        .WithMany()
-                        .HasForeignKey("StdClassMngId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
                     b.HasOne("SCMR_Api.Model.Student", "Student")
                         .WithMany("StudentPayments")
                         .HasForeignKey("StudentId")
@@ -3577,14 +3537,6 @@ namespace SCMR_Api.Migrations
                     b.HasOne("SCMR_Api.Model.Question", "Question")
                         .WithMany("QuestionOptions")
                         .HasForeignKey("QuestionId")
-                        .OnDelete(DeleteBehavior.Cascade);
-                });
-
-            modelBuilder.Entity("SCMR_Api.Model.RegisterItemLogin", b =>
-                {
-                    b.HasOne("SCMR_Api.Model.Category", "Category")
-                        .WithMany("RegisterItemLogins")
-                        .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 

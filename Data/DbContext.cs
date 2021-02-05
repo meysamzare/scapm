@@ -175,6 +175,9 @@ namespace SCMR_Api.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<Model.Attribute> Attributes { get; set; }
 
+        public DbSet<RegisterItemLogin> RegisterItemLogins { get; set; }
+        
+
         public DbSet<AttributeOption> AttributeOptions { get; set; }
 
         public DbSet<ChatRole> ChatRoles { get; set; }

@@ -4,10 +4,7 @@ namespace SCMR_Api.Model.Financial
 {
 	public class StdPayment
 	{
-		public StdPayment()
-		{
-
-		}
+		public StdPayment() { }
 
 		[Column("StdPayment.Autonum")]
 		public int Id { get; set; }
@@ -43,6 +40,11 @@ namespace SCMR_Api.Model.Financial
 
 		[ForeignKey("StudentId")]
 		public virtual Student Student { get; set; }
+
+		public int StdClassMngId { get; set; }
+		
+		[ForeignKey("StdClassMngId")]
+		public virtual StdClassMng StdClassMng { get; set; }
 
 		public int ContractId { get; set; }
 

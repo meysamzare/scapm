@@ -116,6 +116,13 @@ namespace SCMR_Api.Controllers
                     .Include(c => c.AttributeOptions)
                 .FirstOrDefaultAsync(c => c.Id == param.attrId);
 
+                var attrOptions = attribute.AttributeOptions.Select(c => new AttributeOption
+                {
+                    Id = 0,
+                    Title = c.Title,
+                    IsTrue = c.IsTrue
+                }).ToList();
+
                 var attr = new Model.Attribute
                 {
                     Id = 0,
@@ -137,7 +144,7 @@ namespace SCMR_Api.Controllers
                     Score = attribute.Score,
                     QuestionId = attribute.QuestionId,
                     IsTemplate = false,
-                    AttributeOptions = attribute.AttributeOptions
+                    AttributeOptions = attrOptions
                 };
 
                 db.Attributes.Add(attr);
@@ -151,6 +158,49 @@ namespace SCMR_Api.Controllers
                 return this.CatchFunction(e);
             }
         }
+
+        [HttpPost]
+        [Role(RolePrefix.Add, roleTitle)]
+        public async Task<IActionResult> QuickAddAttribute([FromBody] QuickAddAttributeParam param)
+        {
+            try
+            {
+                var attr = new Model.Attribute
+                {
+                    Id = 0,
+                    Title = param.attrTitle,
+                    CategoryId = param.catId,
+                    UnitId = param.unitId,
+                    Desc = "",
+                    AttrType = (AttrType)param.attrType,
+                    MaxFileSize = param.attrMaxFileSize.HasValue ? param.attrMaxFileSize.Value : 0,
+                    IsUniq = false,
+                    Order = 0,
+                    IsInClient = true,
+                    IsInShowInfo = false,
+                    IsInSearch = false,
+                    OrderInInfo = 0,
+                    Placeholder = "",
+                    IsRequired = param.isRequired,
+                    IsMeliCode = false,
+                    Score = 1,
+                    QuestionId = null,
+                    IsTemplate = false,
+                    AttributeOptions = param.attributeOptions
+                };
+
+                db.Attributes.Add(attr);
+
+                await db.SaveChangesAsync();
+
+                return this.SuccessFunction();
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
 
         [HttpPost]
         [Role(RolePrefix.Add, roleTitle)]
@@ -292,6 +342,7 @@ namespace SCMR_Api.Controllers
                 var sl = await db.Attributes
                         .Include(c => c.Category)
                     .Where(c => c.Category.Type == (CategoryTotalType)type)
+                        .OrderByDescending(c => c.Id)
                     .Select(c => new
                     {
                         id = c.Id,
@@ -532,7 +583,7 @@ namespace SCMR_Api.Controllers
                     CategoryId = c.CategoryId,
                     AttributeOptions = c.getAttributeOptions(true, c.AttrType, c.AttributeOptions, c.Question == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
                     Score = c.Score,
-                    QuestionId = c.QuestionId.HasValue ? c.QuestionId.Value : 0,
+                    queId = c.QuestionId.HasValue ? c.QuestionId.Value : 0,
                     QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
                     ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent,
                     IsInClient = c.IsInClient,
@@ -541,13 +592,15 @@ namespace SCMR_Api.Controllers
                     IsInShowInfo = c.IsInShowInfo,
                     IsInSearch = c.IsInSearch,
                     Order = c.Order,
-                    questionDefact = c.Question != null ? c.Question.getDefctString(c.Question.Defact) : "",
-                    questionPerson = c.Question != null ? c.Question.Person : "",
-                    questionTypeString = c.Question != null ? c.Question.getTypeString(c.Question.Type) : "",
-                    questionName = c.Question != null ? c.Question.Name : ""
+                    questiondefactString = c.Question != null ? c.Question.getDefctString(c.Question.Defact) : "",
+                    questionperson = c.Question != null ? c.Question.Person : "",
+                    questiontypeString = c.Question != null ? c.Question.getTypeString(c.Question.Type) : "",
+                    questionname = c.Question != null ? c.Question.Name : "",
+                    questiontype = c.Question != null ? (int)c.Question.Type : 0,
+                    questionDefactInt = c.Question != null ? (int)c.Question.Defact : 0
                 })
                 .OrderBy(c => c.UnitOrder).ThenBy(c => c.UnitId)
-                    .ThenBy(c => c.Order).ThenBy(c => c.QuestionId).ThenBy(c => c.Id)
+                    .ThenBy(c => c.Order).ThenBy(c => c.queId).ThenBy(c => c.Id)
                 .ToList();
 
                 return this.DataFunction(true, attr);
@@ -824,6 +877,17 @@ namespace SCMR_Api.Controllers
             }
         }
 
+    }
+
+    public class QuickAddAttributeParam
+    {
+        public int catId { get; set; }
+        public int unitId { get; set; }
+        public int attrType { get; set; }
+        public string attrTitle { get; set; }
+        public bool isRequired { get; set; }
+        public List<AttributeOption> attributeOptions { get; set; }
+        public int? attrMaxFileSize { get; set; }
     }
 
     public class RegisterItemAttrs

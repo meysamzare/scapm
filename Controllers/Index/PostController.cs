@@ -51,7 +51,7 @@ namespace SCMR_Api.Controllers
                     post.HeaderPicUrl = Path.Combine("/UploadFiles/" + guid + "/" + post.HeaderPicName);
                 }
 
-                post.Url = post.Url.Trim().Replace(' ', '-');
+                post.Url = post.Url.Trim().Replace(" ", "-").Replace("/", "-");
 
                 await db.Posts.AddAsync(post);
 
@@ -73,7 +73,7 @@ namespace SCMR_Api.Controllers
                 var po = await db.Posts.FirstOrDefaultAsync(c => c.Id == post.Id);
 
                 po.DateEdited = DateTime.Now;
-                po.Url = post.Url.Trim().Replace(' ', '-');
+                po.Url = post.Url.Trim().Replace(' ', '-').Replace("/", "-");
 
                 if (!string.IsNullOrEmpty(post.HeaderPicData))
                 {
@@ -431,23 +431,47 @@ namespace SCMR_Api.Controllers
             try
             {
 
-                var posts = await db.Posts
-                    .Where(c => c.IsActive == true && c.IsHighLight == false)
+                var notHighLightPosts = await db.Posts
+                    .Where(c => c.IsActive && !c.IsHighLight)
                     .OrderByDescending(c => c.DateCreate)
-                    .Take(15)
+                        .Take(12)
                     .Select(c => new
                     {
                         Id = c.Id,
                         Url = c.Url,
-                        HeaderPicUrl = c.HeaderPicUrl,
+                        headerPicUrl = c.HeaderPicUrl,
                         Title = c.Title,
                         ShortContent = c.ShortContent,
                         ViewCount = c.ViewCount,
-                        commentCount = c.Comments.Where(l => l.HaveComformed == true).Count()
+                        commentCount = c.Comments.Where(l => l.HaveComformed == true).Count(),
+                        DateCreate = c.DateCreate,
+                        IsHighLight = c.IsHighLight
                     })
                 .ToListAsync();
 
-                return this.DataFunction(true, posts);
+                var lastTwoHighLightPosts = await db.Posts
+                    .Where(c => c.IsActive && c.IsHighLight)
+                        .OrderByDescending(c => c.DateCreate)
+                        .Take(2)
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        Url = c.Url,
+                        headerPicUrl = c.HeaderPicUrl,
+                        Title = c.Title,
+                        ShortContent = c.ShortContent,
+                        ViewCount = c.ViewCount,
+                        commentCount = c.Comments.Where(l => l.HaveComformed == true).Count(),
+                        DateCreate = c.DateCreate,
+                        IsHighLight = c.IsHighLight
+                    })
+                .ToListAsync();
+
+                notHighLightPosts.AddRange(lastTwoHighLightPosts);
+
+                notHighLightPosts = notHighLightPosts.OrderByDescending(c => Guid.NewGuid()).ToList();
+
+                return this.DataFunction(true, notHighLightPosts);
             }
             catch (System.Exception e)
             {
@@ -663,7 +687,7 @@ namespace SCMR_Api.Controllers
                             return this.UnSuccessFunction(" پست " + sl.Name + " دارای رویداد هایی است", "error");
                         }
 
-                        
+
                         var picurl = sl.HeaderPicUrl;
 
                         if (!string.IsNullOrEmpty(picurl))

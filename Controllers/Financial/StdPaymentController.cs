@@ -51,6 +51,7 @@ namespace SCMR_Api.Controllers
 
                 stdpay.PaymentTypeId = stdpayment.PaymentTypeId;
                 stdpay.StudentId = stdpayment.StudentId;
+                stdpay.StdClassMngId = stdpayment.StdClassMngId;
                 stdpay.ContractId = stdpayment.ContractId;
 
                 await db.SaveChangesAsync();

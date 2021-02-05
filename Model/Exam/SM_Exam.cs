@@ -63,6 +63,9 @@ namespace SCMR_Api.Model
         public string CancellReason { get; set; }
 
 
+        public bool ShowAvgOfExam { get; set; }
+
+
         public int? OnlineExamId { get; set; }
 
 

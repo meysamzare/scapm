@@ -3,19 +3,21 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20210101182002_initUpdate48")]
+    partial class initUpdate48
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "2.2.6-servicing-10079")
+                .HasAnnotation("ProductVersion", "2.2.0-rtm-35687")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
                 .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
@@ -687,8 +689,6 @@ namespace SCMR_Api.Migrations
                     b.Property<string>("Shobe")
                         .HasColumnName("StdPayment.BankSection");
 
-                    b.Property<int>("StdClassMngId");
-
                     b.Property<int>("StudentId")
                         .HasColumnName("StdPayment.Student");
 
@@ -697,8 +697,6 @@ namespace SCMR_Api.Migrations
                     b.HasIndex("ContractId");
 
                     b.HasIndex("PaymentTypeId");
-
-                    b.HasIndex("StdClassMngId");
 
                     b.HasIndex("StudentId");
 
@@ -3010,10 +3008,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2021, 1, 18, 21, 36, 55, 54, DateTimeKind.Local).AddTicks(4949),
+                            DateAdd = new DateTime(2021, 1, 1, 21, 50, 0, 994, DateTimeKind.Local).AddTicks(4271),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("53c582ae-9725-4591-9bac-2af0a101c444"),
+                            GId = new Guid("71fa575d-bc4b-485d-bf7c-3325e3c7106b"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",
@@ -3370,11 +3368,6 @@ namespace SCMR_Api.Migrations
                     b.HasOne("SCMR_Api.Model.Financial.PaymentType", "PaymentType")
                         .WithMany("StdPayments")
                         .HasForeignKey("PaymentTypeId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("SCMR_Api.Model.StdClassMng", "StdClassMng")
-                        .WithMany()
-                        .HasForeignKey("StdClassMngId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("SCMR_Api.Model.Student", "Student")

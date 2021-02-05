@@ -71,6 +71,11 @@ namespace SCMR_Api.Controllers
                 que.Desc2 = question.Desc2;
                 que.ComplatabelContent = question.ComplatabelContent;
 
+                await db.Attributes.Where(c => c.AttrType == AttrType.Question && c.QuestionId == question.Id).ForEachAsync(attr =>
+                {
+                    attr.Score = question.Mark;
+                });
+
                 await db.SaveChangesAsync();
 
                 return this.SuccessFunction();
@@ -111,9 +116,19 @@ namespace SCMR_Api.Controllers
                         Type = c.Type,
                         YeareducationId = c.Grade.YeareducationId,
                         Mark = c.Mark,
+                        Score = c.Mark,
                         GradeId = c.GradeId,
                         CourseId = c.CourseId,
                         Defact = c.Defact,
+                        options = c.QuestionOptions.Select(v => new
+                        {
+                            id = v.Id,
+                            title = v.Name,
+                            isTrue = v.IsTrue
+                        }),
+                        complatabelContent = c.ComplatabelContent,
+                        typeString = c.getTypeString(c.Type),
+                        defactString = c.getDefctString(c.Defact)
                     })
                     .Where(c => c.YeareducationId == nowYeareducationId)
                 .AsQueryable();
@@ -312,7 +327,8 @@ namespace SCMR_Api.Controllers
                         ComplatabelContent = c.ComplatabelContent,
                         Person = c.Person,
                         DefactString = c.getDefctString(c.Defact),
-                        Name = c.Name
+                        Name = c.Name,
+                        Score = c.Mark
                     })
                 .ToListAsync();
 

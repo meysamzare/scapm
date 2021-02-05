@@ -94,26 +94,24 @@ namespace SCMR_Api.Model
                 questionOptions.ForEach(op => AttrOptions.Add(new AttributeOption
                 {
                     Id = op.Id,
-                    Title = showTitle ? op.Title : op.Name, 
-                    IsTrue = op.IsTrue
+                    Title = showTitle ? op.Title : op.Name,
+                    IsTrue = withIsTrue ? op.IsTrue : false
                 }));
             }
             else
             {
                 if (options != null)
                 {
-                    AttrOptions = options;
+                    AttrOptions = options.Select(c => new AttributeOption
+                    {
+                        Id = c.Id,
+                        Title = c.Title,
+                        IsTrue = withIsTrue ? c.IsTrue : false
+                    }).ToList();
                 }
             }
 
-            if (withIsTrue)
-            {
-                return AttrOptions;
-            }
-            else
-            {
-                return AttrOptions.Any() ? AttrOptions.Select(c => new AttributeOption { Id = c.Id, Title = c.Title }).ToList() : new List<AttributeOption>();
-            }
+            return AttrOptions;
         }
 
         public string AttrTypeString
@@ -323,7 +321,7 @@ namespace SCMR_Api.Model
             return "";
         }
 
-        
+
         public bool haveTrue(Attribute attr)
         {
             if (attr.AttrType == AttrType.combobox ||
