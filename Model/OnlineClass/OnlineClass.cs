@@ -20,6 +20,7 @@ namespace SCMR_Api.Model
 
         public int CourseId { get; set; }
 
+        public int? OnlineClassServerId { get; set; }
 
         // user password
         public string attendeePW { get; set; }
@@ -90,6 +91,9 @@ namespace SCMR_Api.Model
             
             [ForeignKey("CourseId")]
             public virtual Course Course { get; set; }
+            
+            [ForeignKey("OnlineClassServerId")]
+            public virtual OnlineClassServer OnlineClassServer { get; set; }
 
         #endregion
         

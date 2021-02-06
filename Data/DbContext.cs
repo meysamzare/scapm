@@ -261,6 +261,8 @@ namespace SCMR_Api.Data
 
         public DbSet<OnlineClass> OnlineClasses { get; set; }
 
+        public DbSet<OnlineClassServer> OnlineClassServers { get; set; }
+
         public DbSet<StudentDailySchedule> StudentDailySchedules { get; set; }
 
 

@@ -14,12 +14,12 @@ namespace SCMR_Api.Controllers
     [Route("[controller]/[action]")]
     [ApiController]
     [Authorize]
-    public class OnlineClassController : Controller
+    public class OnlineClassServerController : Controller
     {
         public Data.DbContext db;
         private IHostingEnvironment hostingEnvironment;
 
-        public OnlineClassController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment)
+        public OnlineClassServerController(Data.DbContext _db, IHostingEnvironment _hostingEnvironment)
         {
             db = _db;
             hostingEnvironment = _hostingEnvironment;
@@ -27,11 +27,11 @@ namespace SCMR_Api.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Add([FromBody] OnlineClass onlineClass)
+        public async Task<IActionResult> Add([FromBody] OnlineClassServer onlineClassServer)
         {
             try
             {
-                db.OnlineClasses.Add(onlineClass);
+                db.OnlineClassServers.Add(onlineClassServer);
 
                 await db.SaveChangesAsync();
 
@@ -44,11 +44,11 @@ namespace SCMR_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit([FromBody] OnlineClass onlineClass)
+        public async Task<IActionResult> Edit([FromBody] OnlineClassServer onlineClassServer)
         {
             try
             {
-                db.OnlineClasses.Update(onlineClass);
+                db.OnlineClassServers.Update(onlineClassServer);
 
                 await db.SaveChangesAsync();
 
@@ -73,15 +73,14 @@ namespace SCMR_Api.Controllers
 
                 var query = getparams.q;
 
-                var sl = db.OnlineClasses
-                    .Include(c => c.Grade)
-                    .Include(c => c.Class)
+                var sl = db.OnlineClassServers
+                    .Include(c => c.OnlineClasses)
                 .AsQueryable();
 
 
                 if (!string.IsNullOrWhiteSpace(query))
                 {
-                    sl = sl.Where(c => c.name.Contains(query) || c.className.Contains(query) || c.gradeName.Contains(query));
+                    sl = sl.Where(c => c.Name.Contains(query) || c.Url.Contains(query));
                 }
 
                 count = sl.Count();
@@ -95,11 +94,11 @@ namespace SCMR_Api.Controllers
                     }
                     if (getparams.sort.Equals("name"))
                     {
-                        sl = sl.OrderBy(c => c.name);
+                        sl = sl.OrderBy(c => c.Name);
                     }
-                    if (getparams.sort.Equals("grade"))
+                    if (getparams.sort.Equals("classCount"))
                     {
-                        sl = sl.OrderBy(c => c.Grade.Name).ThenBy(c => c.Class.Name);
+                        sl = sl.OrderBy(c => c.OnlineClasses.Count);
                     }
                 }
                 else if (getparams.direction.Equals("desc"))
@@ -110,11 +109,11 @@ namespace SCMR_Api.Controllers
                     }
                     if (getparams.sort.Equals("name"))
                     {
-                        sl = sl.OrderByDescending(c => c.name);
+                        sl = sl.OrderByDescending(c => c.Name);
                     }
-                    if (getparams.sort.Equals("grade"))
+                    if (getparams.sort.Equals("classCount"))
                     {
-                        sl = sl.OrderByDescending(c => c.Grade.Name).ThenByDescending(c => c.Class.Name);
+                        sl = sl.OrderByDescending(c => c.OnlineClasses.Count);
                     }
                 }
                 else
@@ -129,9 +128,9 @@ namespace SCMR_Api.Controllers
                     .Select(c => new
                     {
                         id = c.Id,
-                        name = c.name,
-                        gradeName = c.Grade.Name,
-                        className = c.Class.Name
+                        name = c.Name,
+                        haveAnyClass = c.OnlineClasses.Any(),
+                        classCount = c.OnlineClasses.Count()
                     })
                 .ToListAsync();
 
@@ -154,8 +153,7 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-
-                var sl = await db.OnlineClasses.Select(c => new { id = c.Id, name = c.name }).ToListAsync();
+                var sl = await db.OnlineClassServers.Select(c => new { id = c.Id, name = c.Name }).ToListAsync();
 
                 return this.DataFunction(true, sl);
             }
@@ -165,63 +163,16 @@ namespace SCMR_Api.Controllers
             }
         }
 
-        [HttpPost]
-        public async Task<IActionResult> getAllByGrade_Class_Course([FromBody] getAllByGrade_Class_Course param)
-        {
-            try
-            {
-                var onlineClasses = db.OnlineClasses.AsQueryable();
-
-                
-                if (param.gradeId.HasValue)
-                {
-                    onlineClasses = onlineClasses.Where(c => c.GradeId == param.gradeId.Value);
-                }
-
-                if (param.classId.HasValue)
-                {
-                    onlineClasses = onlineClasses.Where(c => c.ClassId.HasValue ? c.ClassId.Value == param.classId.Value : false);
-                }
-
-                if (param.courseId.HasValue)
-                {
-                    onlineClasses = onlineClasses.Where(c => c.CourseId == param.courseId.Value);
-                }
-
-                return this.DataFunction(true, await onlineClasses.ToListAsync());
-            }
-            catch (System.Exception e)
-            {
-                return this.CatchFunction(e);
-            }
-        }
 
         [HttpPost]
-        public async Task<IActionResult> getOnlineClassByMeetingId([FromBody] string meetingId)
-        {
-            try
-            {
-                var onlineClass = await db.OnlineClasses.Where(c => c.meetingId == meetingId).FirstOrDefaultAsync();
-
-                return this.DataFunction(true, onlineClass);
-            }
-            catch (System.Exception e)
-            {
-                return this.CatchFunction(e);
-            }
-        }
-
-
-
-        [HttpPost]
-        public async Task<IActionResult> getOnlineClass([FromBody] int id)
+        public async Task<IActionResult> getOnlineClassServer([FromBody] int id)
         {
             try
             {
 
                 if (id != 0)
                 {
-                    var sl = await db.OnlineClasses.FirstOrDefaultAsync(c => c.Id == id);
+                    var sl = await db.OnlineClassServers.FirstOrDefaultAsync(c => c.Id == id);
 
                     return this.DataFunction(true, sl);
                 }
@@ -246,16 +197,14 @@ namespace SCMR_Api.Controllers
                 {
                     if (id != 0)
                     {
-
-                        var sl = await db.OnlineClasses
-                        .FirstOrDefaultAsync(c => c.Id == id);
+                        var sl = await db.OnlineClassServers.FirstOrDefaultAsync(c => c.Id == id);
 
                         if (sl == null)
                         {
                             return this.UnSuccessFunction("Data Not Found", "error");
                         }
 
-                        db.OnlineClasses.Remove(sl);
+                        db.OnlineClassServers.Remove(sl);
                     }
                     else
                     {
@@ -267,7 +216,6 @@ namespace SCMR_Api.Controllers
 
 
                 return this.SuccessFunction();
-
             }
             catch (System.Exception e)
             {
@@ -278,10 +226,4 @@ namespace SCMR_Api.Controllers
 
     }
 
-    public class getAllByGrade_Class_Course
-    {
-        public int? gradeId { get; set; }
-        public int? classId { get; set; }
-        public int? courseId { get; set; }
-    }
 }

@@ -352,6 +352,13 @@ namespace SCMR_Api.Model
         public bool Remove_OnlineClass { get; set; }
         public bool View_OnlineClass { get; set; }
 
+
+        public bool Add_OnlineClassServer { get; set; }
+        public bool Edit_OnlineClassServer { get; set; }
+        public bool Remove_OnlineClassServer { get; set; }
+        public bool View_OnlineClassServer { get; set; }
+
+
         public bool Add_DescriptiveScore { get; set; }
         public bool Edit_DescriptiveScore { get; set; }
         public bool Remove_DescriptiveScore { get; set; }
