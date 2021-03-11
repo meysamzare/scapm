@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20210220164920_initUpdate50_1")]
+    partial class initUpdate50_1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -103,8 +105,6 @@ namespace SCMR_Api.Migrations
 
                     b.Property<bool>("IsMeliCode");
 
-                    b.Property<bool>("IsPhoneNumber");
-
                     b.Property<bool>("IsRequired");
 
                     b.Property<bool>("IsTemplate");
@@ -121,15 +121,9 @@ namespace SCMR_Api.Migrations
 
                     b.Property<int?>("QuestionId");
 
-                    b.Property<string>("RequiredErrorMessage");
-
                     b.Property<double>("Score");
 
                     b.Property<string>("Title");
-
-                    b.Property<string>("UniqErrorMessage");
-
-                    b.Property<int>("UniqLimitCount");
 
                     b.Property<int>("UnitId");
 
@@ -157,8 +151,6 @@ namespace SCMR_Api.Migrations
                     b.Property<bool>("IsTrue");
 
                     b.Property<string>("Title");
-
-                    b.Property<int?>("UniqLimitCount");
 
                     b.HasKey("Id");
 
@@ -198,8 +190,6 @@ namespace SCMR_Api.Migrations
                     b.Property<string>("EndMessage");
 
                     b.Property<int?>("ExamTypeId");
-
-                    b.Property<Guid>("GId");
 
                     b.Property<int?>("GradeId");
 
@@ -3090,10 +3080,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2021, 3, 1, 22, 47, 0, 750, DateTimeKind.Local).AddTicks(726),
+                            DateAdd = new DateTime(2021, 2, 20, 20, 19, 19, 890, DateTimeKind.Local).AddTicks(1122),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("0712dd51-7dc8-4afd-a30c-b712246cc3fc"),
+                            GId = new Guid("73f39ff5-a3b2-4e1b-8d47-82cefc784fe0"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",

@@ -671,9 +671,19 @@ namespace SCMR_Api.Controllers
             try
             {
                 var st = await db.Students
+                    .Include(c => c.StdClassMngs)
+                        .ThenInclude(c => c.Grade)
+                    .Include(c => c.StdClassMngs)
+                        .ThenInclude(c => c.Class)
                         .OrderBy(c => c.LastName)
                         .ThenBy(c => c.Name)
-                    .Select(c => new { id = c.Id, name = c.Name + " " + c.LastName })
+                    .Select(c => new
+                    {
+                        id = c.Id,
+                        name = c.LastName + " - " + c.Name,
+                        gradeName = c.getStudentGradeName(c.StdClassMngs.ToList()),
+                        className = c.getStudentClassName(c.StdClassMngs.ToList())
+                    })
                 .ToListAsync();
 
                 return this.DataFunction(true, st);
@@ -690,10 +700,14 @@ namespace SCMR_Api.Controllers
             try
             {
                 var studentts = db.Students
+                    .Include(c => c.StdClassMngs)
+                        .ThenInclude(c => c.Grade)
+                    .Include(c => c.StdClassMngs)
+                        .ThenInclude(c => c.Class)
                     .Select(c => new
                     {
                         Id = c.Id,
-                        Name = c.Name + ' ' + c.LastName,
+                        Name = c.LastName + " - " + c.Name,
                         Code = c.Code,
                         OrgCode = c.OrgCode,
                         LastName = c.LastName,
@@ -702,7 +716,9 @@ namespace SCMR_Api.Controllers
                         IdNumber2 = c.IdNumber2,
                         IdCardSerial = c.IdCardSerial,
                         haveClass = c.haveClass(param.classId, c.StdClassMngs.ToList()),
-                        haveGrade = c.haveGrade(param.gradeId, c.StdClassMngs.ToList())
+                        haveGrade = c.haveGrade(param.gradeId, c.StdClassMngs.ToList()),
+                        gradeName = c.getStudentGradeName(c.StdClassMngs),
+                        className = c.getStudentClassName(c.StdClassMngs)
                     })
                 .AsQueryable();
 
@@ -1206,7 +1222,7 @@ namespace SCMR_Api.Controllers
 
                         return this.DataFunction(true, new
                         {
-                            token = BuildToken(loginParent.username, 1440 * 7),
+                            token = BuildToken(loginParent.username, 800),
                             std = std,
                             stdClassMngs = stdClassMngs,
                             changePass = !IsPasswordSafe(std.ParentsPassword)

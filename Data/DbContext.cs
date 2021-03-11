@@ -156,6 +156,19 @@ namespace SCMR_Api.Data
                     v => string.Join(',', v),
                     v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => int.Parse(c)).ToArray());
 
+
+            modelBuilder.Entity<OnlineClass>()
+                .Property(e => e.AllowedAdminIds)
+                .HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => int.Parse(c)).ToArray());
+
+            modelBuilder.Entity<OnlineClass>()
+                .Property(e => e.AllowedStudentIds)
+                .HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => int.Parse(c)).ToArray());
+
         }
 
 
@@ -176,7 +189,7 @@ namespace SCMR_Api.Data
         public DbSet<Model.Attribute> Attributes { get; set; }
 
         public DbSet<RegisterItemLogin> RegisterItemLogins { get; set; }
-        
+
 
         public DbSet<AttributeOption> AttributeOptions { get; set; }
 
@@ -260,6 +273,8 @@ namespace SCMR_Api.Data
 
 
         public DbSet<OnlineClass> OnlineClasses { get; set; }
+
+        public DbSet<OnlineClassLogin> OnlineClassLogins { get; set; }
 
         public DbSet<OnlineClassServer> OnlineClassServers { get; set; }
 

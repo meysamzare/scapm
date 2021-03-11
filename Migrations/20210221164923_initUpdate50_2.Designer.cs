@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20210221164923_initUpdate50_2")]
+    partial class initUpdate50_2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -129,8 +131,6 @@ namespace SCMR_Api.Migrations
 
                     b.Property<string>("UniqErrorMessage");
 
-                    b.Property<int>("UniqLimitCount");
-
                     b.Property<int>("UnitId");
 
                     b.Property<string>("Values");
@@ -157,8 +157,6 @@ namespace SCMR_Api.Migrations
                     b.Property<bool>("IsTrue");
 
                     b.Property<string>("Title");
-
-                    b.Property<int?>("UniqLimitCount");
 
                     b.HasKey("Id");
 
@@ -198,8 +196,6 @@ namespace SCMR_Api.Migrations
                     b.Property<string>("EndMessage");
 
                     b.Property<int?>("ExamTypeId");
-
-                    b.Property<Guid>("GId");
 
                     b.Property<int?>("GradeId");
 
@@ -3090,10 +3086,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2021, 3, 1, 22, 47, 0, 750, DateTimeKind.Local).AddTicks(726),
+                            DateAdd = new DateTime(2021, 2, 21, 20, 19, 23, 146, DateTimeKind.Local).AddTicks(3591),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("0712dd51-7dc8-4afd-a30c-b712246cc3fc"),
+                            GId = new Guid("40949c3b-09a4-43b1-b6bf-94cedc04d224"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",

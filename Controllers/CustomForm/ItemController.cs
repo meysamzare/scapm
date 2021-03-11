@@ -161,7 +161,8 @@ namespace SCMR_Api.Controllers
 
                 if (!string.IsNullOrWhiteSpace(query))
                 {
-                    items = items.Where(c => c.Title.Contains(query) || c.Id.ToString().Contains(query) ||
+                    items = items.Where(c => c.Title.Contains(query) || c.AuthorizedFullName.Contains(query) ||
+                            c.AuthorizedUsername.Contains(query) || c.Id.ToString().Contains(query) ||
                             c.RahCode.ToString().Contains(query) ||
                             c.Unit.Title.Contains(query) || c.Tags.Contains(query) || c.Id.ToString().Contains(query));
                 }
@@ -1282,11 +1283,9 @@ namespace SCMR_Api.Controllers
                         .ThenInclude(c => c.ItemAttribute)
                 .FirstOrDefaultAsync(c => c.Id == itemWithAttrs.catId);
 
-                var catAttrIds = cat.Attributes.Select(c => c.Id);
-
                 var itemAttrs = new List<ItemAttribute>();
 
-                foreach (var itemAttr in itemWithAttrs.itemAttrs.Where(c => catAttrIds.Contains(c.AttributeId)))
+                foreach (var itemAttr in itemWithAttrs.itemAttrs)
                 {
                     var filepath = "";
                     if (itemAttr.AttributeFilePath.Equals("1"))
@@ -1314,9 +1313,35 @@ namespace SCMR_Api.Controllers
 
                 foreach (var shouldCheckItemAttr in itemAttrs.Where(c => catUniqAttrIds.Contains(c.AttributeId)))
                 {
-                    isAnySameValue = cat.Items.SelectMany(c => c.ItemAttribute)
-                        .Where(c => c.AttributeId == shouldCheckItemAttr.AttributeId)
-                    .Any(c => c.AttrubuteValue == shouldCheckItemAttr.AttrubuteValue);
+                    var attr = await db.Attributes
+                        .Include(c => c.AttributeOptions)
+                    .FirstOrDefaultAsync(c => c.Id == shouldCheckItemAttr.AttributeId);
+
+                    var uniqValueForCheck = shouldCheckItemAttr.AttrubuteValue;
+                    var attrUniqLimitCount = 1;
+
+
+                    if (attr.AttributeOptions.Any())
+                    {
+                        var attrOption = attr.AttributeOptions.FirstOrDefault(c => c.Id.ToString() == uniqValueForCheck);
+
+                        if (attrOption != null)
+                        {
+                            attrUniqLimitCount = attrOption.UniqLimitCount.HasValue ? attrOption.UniqLimitCount.Value : attr.UniqLimitCount;
+                        }
+                    }
+                    else
+                    {
+                        attrUniqLimitCount = attr.UniqLimitCount;
+                    }
+
+                    var sameValuesItemAttrs = cat.Items.SelectMany(c => c.ItemAttribute)
+                        .Where(c => c.AttributeId == shouldCheckItemAttr.AttributeId && c.AttrubuteValue.Trim().PersianToEnglishDigit().Equals(uniqValueForCheck));
+
+                    if (sameValuesItemAttrs.Count() >= attrUniqLimitCount)
+                    {
+                        isAnySameValue = true;
+                    }
 
                     if (isAnySameValue) { break; }
                 }
@@ -1390,21 +1415,39 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var items = await db.Items.Include(c => c.ItemAttribute).Where(c => c.CategoryId == uniqAttrParams.catId).ToListAsync();
+                var uniqValueForCheck = uniqAttrParams.val.Trim().PersianToEnglishDigit();
 
-                foreach (var item in items)
+                var uniqLimitCount = 1;
+
+                var cat = await db.Categories
+                    .Include(c => c.Items)
+                        .ThenInclude(c => c.ItemAttribute)
+                .FirstOrDefaultAsync(c => c.Id == uniqAttrParams.catId);
+
+                var attr = await db.Attributes
+                    .Include(c => c.AttributeOptions)
+                .FirstOrDefaultAsync(c => c.Id == uniqAttrParams.attrId);
+
+                if (attr.AttributeOptions.Any())
                 {
-                    if (item.ItemAttribute.Any())
+                    var attrOption = attr.AttributeOptions.FirstOrDefault(c => c.Id.ToString() == uniqValueForCheck);
+
+                    if (attrOption != null)
                     {
-                        foreach (var itemAttr in item.ItemAttribute)
-                        {
-                            if (itemAttr.AttributeId == uniqAttrParams.attrId &&
-                                itemAttr.AttrubuteValue.Trim().PersianToEnglishDigit().Equals(uniqAttrParams.val.Trim().PersianToEnglishDigit()))
-                            {
-                                return this.SuccessFunction();
-                            }
-                        }
+                        uniqLimitCount = attrOption.UniqLimitCount.HasValue ? attrOption.UniqLimitCount.Value : attr.UniqLimitCount;
                     }
+                }
+                else
+                {
+                    uniqLimitCount = attr.UniqLimitCount;
+                }
+
+                var sameValuesItemAttrs = cat.Items.SelectMany(c => c.ItemAttribute)
+                    .Where(c => c.AttributeId == uniqAttrParams.attrId && c.AttrubuteValue.Trim().PersianToEnglishDigit().Equals(uniqValueForCheck));
+
+                if (sameValuesItemAttrs.Count() >= uniqLimitCount)
+                {
+                    return this.SuccessFunction();
                 }
 
                 return this.DataFunction(false, null);

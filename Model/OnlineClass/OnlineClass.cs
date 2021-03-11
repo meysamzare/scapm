@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SCMR_Api.Model
@@ -14,13 +15,22 @@ namespace SCMR_Api.Model
         public string name { get; set; }
 
 
-        public int GradeId { get; set; }
+        public int? GradeId { get; set; }
 
         public int? ClassId { get; set; }
 
-        public int CourseId { get; set; }
+        public int? CourseId { get; set; }
 
         public int? OnlineClassServerId { get; set; }
+
+
+        public OnlineClassAuthorizeType AuthorizeType { get; set; }
+
+        public int[] AllowedAdminIds { get; set; }
+
+        public int[] AllowedStudentIds { get; set; }
+
+
 
         // user password
         public string attendeePW { get; set; }
@@ -95,6 +105,8 @@ namespace SCMR_Api.Model
             [ForeignKey("OnlineClassServerId")]
             public virtual OnlineClassServer OnlineClassServer { get; set; }
 
+            public virtual IList<OnlineClassLogin> OnlineClassLogins { get; set; }
+
         #endregion
         
 
@@ -103,5 +115,11 @@ namespace SCMR_Api.Model
             public string className => Class != null ? Class.Name : "";
             public string courseName => Course != null ? Course.Name : "";
         #endregion
+    }
+
+    public enum OnlineClassAuthorizeType
+    {
+        ByClass = 0,
+        Custom = 1
     }
 }

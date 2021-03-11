@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20210211122616_initUpdate50")]
+    partial class initUpdate50
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -103,8 +105,6 @@ namespace SCMR_Api.Migrations
 
                     b.Property<bool>("IsMeliCode");
 
-                    b.Property<bool>("IsPhoneNumber");
-
                     b.Property<bool>("IsRequired");
 
                     b.Property<bool>("IsTemplate");
@@ -121,15 +121,9 @@ namespace SCMR_Api.Migrations
 
                     b.Property<int?>("QuestionId");
 
-                    b.Property<string>("RequiredErrorMessage");
-
                     b.Property<double>("Score");
 
                     b.Property<string>("Title");
-
-                    b.Property<string>("UniqErrorMessage");
-
-                    b.Property<int>("UniqLimitCount");
 
                     b.Property<int>("UnitId");
 
@@ -157,8 +151,6 @@ namespace SCMR_Api.Migrations
                     b.Property<bool>("IsTrue");
 
                     b.Property<string>("Title");
-
-                    b.Property<int?>("UniqLimitCount");
 
                     b.HasKey("Id");
 
@@ -199,8 +191,6 @@ namespace SCMR_Api.Migrations
 
                     b.Property<int?>("ExamTypeId");
 
-                    b.Property<Guid>("GId");
-
                     b.Property<int?>("GradeId");
 
                     b.Property<int?>("HardQuestionNumber");
@@ -236,8 +226,6 @@ namespace SCMR_Api.Migrations
                     b.Property<bool>("RandomAttribute");
 
                     b.Property<bool>("RandomAttributeOption");
-
-                    b.Property<int>("RegisterItemStepType");
 
                     b.Property<string>("RegisterPicUrl");
 
@@ -3090,10 +3078,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2021, 3, 1, 22, 47, 0, 750, DateTimeKind.Local).AddTicks(726),
+                            DateAdd = new DateTime(2021, 2, 11, 15, 56, 16, 133, DateTimeKind.Local).AddTicks(4250),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("0712dd51-7dc8-4afd-a30c-b712246cc3fc"),
+                            GId = new Guid("72b76f38-813f-46a9-95f1-af72b054b20e"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",

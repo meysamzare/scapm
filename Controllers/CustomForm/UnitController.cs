@@ -44,7 +44,7 @@ namespace SCMR_Api.Controllers
 
         [HttpPost]
         [Role(RolePrefix.Edit, roleTitle)]
-        public async Task<IActionResult> Edit([FromBody]  Unit unit)
+        public async Task<IActionResult> Edit([FromBody] Unit unit)
         {
             try
             {
@@ -61,6 +61,23 @@ namespace SCMR_Api.Controllers
         }
 
 
+
+        [HttpPost]
+        public async Task<IActionResult> getAllDashboard()
+        {
+            try
+            {
+                var unitList = await db.Units
+                    .OrderBy(c => c.Order).ThenBy(c => c.Id)
+                .Select(c => new { id = c.Id, title = $"{c.Id}. {c.Title}" }).ToListAsync();
+
+                return this.DataFunction(true, unitList);
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
 
         [HttpPost]
         [AllowAnonymous]
@@ -81,7 +98,7 @@ namespace SCMR_Api.Controllers
         }
 
 
-        
+
 
         [HttpPost]
         [Role(RolePrefix.View, roleTitle)]
@@ -104,7 +121,6 @@ namespace SCMR_Api.Controllers
 
                 if (!string.IsNullOrWhiteSpace(query))
                 {
-
                     cls = cls.Where(c => c.Title.Contains(query) || c.EnTitle.Contains(query) || c.Id.ToString().Contains(query));
                 }
 
@@ -150,7 +166,17 @@ namespace SCMR_Api.Controllers
                 cls = cls.Skip((getparams.pageIndex - 1) * getparams.pageSize);
                 cls = cls.Take(getparams.pageSize);
 
-                var q = await cls.ToListAsync();
+                var q = await cls
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        Title = c.Title,
+                        EnTitle = c.EnTitle,
+                        Order = c.Order,
+                        HaveItem = c.Items.Any(),
+                        HaveAttr = c.Attributes.Any(),
+                    })
+                .ToListAsync();
 
                 return Json(new jsondata
                 {

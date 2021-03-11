@@ -17,7 +17,7 @@ namespace SCMR_Api.Model
 
         public bool IsTrue { get; set; }
 
-
+        public int? UniqLimitCount { get; set; }
 
         public int AttributeId { get; set; }
 

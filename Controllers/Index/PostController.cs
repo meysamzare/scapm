@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using SCMR_Api.Model.Index;
 
 namespace SCMR_Api.Controllers
@@ -257,7 +258,12 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var pageSize = 8;
+                if (getparam.size == 0)
+                {
+                    getparam.size = 8;
+                }
+
+                var pageSize = getparam.size;
 
                 int count;
 
@@ -757,6 +763,7 @@ namespace SCMR_Api.Controllers
     public class getindexPram
     {
         public int page { get; set; }
+        public int size { get; set; }
 
         public int type { get; set; }
 

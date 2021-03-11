@@ -356,6 +356,11 @@ namespace SCMR_Api
             return String.Format("{0:F3}", number);
         }
 
+        public static string getFixed2Number(this object number)
+        {
+            return String.Format("{0:F2}", number);
+        }
+
 
         public static JsonResult SuccessFunction(this Controller c)
         {
@@ -597,6 +602,7 @@ namespace SCMR_Api
         {
             Dictionary<char, char> LettersDictionary = new Dictionary<char, char>
             {
+                // Persian
                 ['۰'] = '0',
                 ['۱'] = '1',
                 ['۲'] = '2',
@@ -607,16 +613,17 @@ namespace SCMR_Api
                 ['۷'] = '7',
                 ['۸'] = '8',
                 ['۹'] = '9',
-                ['0'] = '0',
-                ['1'] = '1',
-                ['2'] = '2',
-                ['3'] = '3',
-                ['4'] = '4',
-                ['5'] = '5',
-                ['6'] = '6',
-                ['7'] = '7',
-                ['8'] = '8',
-                ['9'] = '9'
+                // Arabic
+                ['٠'] = '0',
+                ['١'] = '1',
+                ['٢'] = '2',
+                ['٣'] = '3',
+                ['٤'] = '4',
+                ['٥'] = '5',
+                ['٦'] = '6',
+                ['٧'] = '7',
+                ['٨'] = '8',
+                ['٩'] = '9'
             };
             foreach (var item in persianStr)
             {

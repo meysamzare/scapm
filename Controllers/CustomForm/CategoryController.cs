@@ -170,6 +170,7 @@ namespace SCMR_Api.Controllers
                 cat.HardQuestionNumber = addCategory.hardQuestionNumber;
                 cat.ModerateQuestionNumber = addCategory.moderateQuestionNumber;
                 cat.EasyQuestionNumber = addCategory.easyQuestionNumber;
+                cat.RegisterItemStepType = (CategoryRegisterItemStepType)addCategory.registerItemStepType;
 
 
 
@@ -927,7 +928,8 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var cat = await db.Categories.Where(c => c.Type == (CategoryTotalType)type && !c.IsArchived)
+                var cat = await db.Categories.Where(c => c.Type == (CategoryTotalType)type)
+                .OrderByDescending(c => c.Id)
                     .Select(c => new
                     {
                         Id = c.Id,
@@ -1285,7 +1287,41 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                var attrs = await db.Attributes.Where(c => c.CategoryId == catId && c.IsInSearch == true).ToListAsync();
+                var attrs = await db.Attributes.Where(c => c.CategoryId == catId && c.IsInSearch == true)
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        AttrTypeInt = c.AttrTypeToInt(c.AttrType),
+                        UnitId = c.UnitId,
+                        UnitOrder = c.Unit.Order,
+                        Title = c.AttrType == AttrType.Question ? c.Question.Title : c.Title,
+                        Placeholder = c.Placeholder,
+                        Desc = c.Desc,
+                        Values = c.Values,
+                        MaxFileSize = c.MaxFileSize,
+                        CategoryId = c.CategoryId,
+                        AttributeOptions = c.getAttributeOptions(true, c.AttrType, c.AttributeOptions, c.Question == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList(), true),
+                        Score = c.Score,
+                        queId = c.QuestionId.HasValue ? c.QuestionId.Value : 0,
+                        QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
+                        ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent,
+                        IsInClient = c.IsInClient,
+                        IsRequired = false,
+                        IsUniq = c.IsUniq,
+                        IsInShowInfo = c.IsInShowInfo,
+                        IsInSearch = c.IsInSearch,
+                        Order = c.Order,
+                        questiondefactString = c.Question != null ? c.Question.getDefctString(c.Question.Defact) : "",
+                        questionperson = c.Question != null ? c.Question.Person : "",
+                        questiontypeString = c.Question != null ? c.Question.getTypeString(c.Question.Type) : "",
+                        questionname = c.Question != null ? c.Question.Name : "",
+                        questiontype = c.Question != null ? (int)c.Question.Type : 0,
+                        questionDefactInt = c.Question != null ? (int)c.Question.Defact : 0,
+                        canDeleteAttr = c.CategoryId == catId
+                    })
+                    .OrderBy(c => c.UnitOrder).ThenBy(c => c.UnitId)
+                        .ThenBy(c => c.Order).ThenBy(c => c.queId).ThenBy(c => c.Id)
+                .ToListAsync();
 
                 return this.SuccessFunction(data: attrs);
             }
@@ -1569,7 +1605,7 @@ namespace SCMR_Api.Controllers
         public int? moderateQuestionNumber { get; set; }
         public int? easyQuestionNumber { get; set; }
 
-
+        public int registerItemStepType { get; set; }
     }
 
     public class JsTreeModel

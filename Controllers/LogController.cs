@@ -45,7 +45,7 @@ namespace SCMR_Api.Controllers
         {
             try
             {
-                
+
                 var date = DateTime.Now;
 
                 param.Date = date;
@@ -64,7 +64,7 @@ namespace SCMR_Api.Controllers
                     OldObject = JsonConvert.SerializeObject(param.OldObject, Formatting.Indented),
                     DeleteObjects = JsonConvert.SerializeObject(param.DeleteObjects, Formatting.Indented),
                     Table = param.Table,
-                    TableObjectIds = param.TableObjectIds != null ? 
+                    TableObjectIds = param.TableObjectIds != null ?
                         param.TableObjectIds.Where(x => x != null)
                        .Select(x => x.ToString())
                        .ToArray() : new string[0],
@@ -137,17 +137,7 @@ namespace SCMR_Api.Controllers
                 }
                 if (!string.IsNullOrEmpty(param.searchId))
                 {
-                    logs = logs.ToList().Where(c =>
-                    {
-                        if (c.TableObjectIds == null)
-                        {
-                            return false;
-                        }
-                        else
-                        {
-                            return c.TableObjectIds.Select(l => l.ToString()).Contains(param.searchId);
-                        }
-                    }).AsQueryable();
+                    logs = logs.Where(c => c.TableObjectIds != null ? c.TableObjectIds.Select(l => l.ToString()).Contains(param.searchId) : false).AsQueryable();
                 }
 
                 count = logs.Count();

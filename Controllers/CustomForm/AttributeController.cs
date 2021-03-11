@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using SCMR_Api.Model;
 
 namespace SCMR_Api.Controllers
@@ -32,6 +33,11 @@ namespace SCMR_Api.Controllers
                 var attr = param.attr;
                 attr.AttributeOptions = param.options.ToList();
 
+                if (attr.IsUniq && attr.UniqLimitCount < 1)
+                {
+                    return this.UnSuccessFunction("حداکثر تعداد ورود داده تکراری نمی تواند از 1 کمتر باشد");
+                }
+
                 db.Attributes.Add(attr);
 
                 await db.SaveChangesAsync();
@@ -50,6 +56,11 @@ namespace SCMR_Api.Controllers
         {
             try
             {
+                if (addAttrParam.attr.IsUniq && addAttrParam.attr.UniqLimitCount < 1)
+                {
+                    return this.UnSuccessFunction("حداکثر تعداد ورود داده تکراری نمی تواند از 1 کمتر باشد");
+                }
+
                 db.Update(addAttrParam.attr);
 
                 await db.SaveChangesAsync();
@@ -120,7 +131,8 @@ namespace SCMR_Api.Controllers
                 {
                     Id = 0,
                     Title = c.Title,
-                    IsTrue = c.IsTrue
+                    IsTrue = c.IsTrue,
+                    UniqLimitCount = c.UniqLimitCount
                 }).ToList();
 
                 var attr = new Model.Attribute
@@ -144,7 +156,11 @@ namespace SCMR_Api.Controllers
                     Score = attribute.Score,
                     QuestionId = attribute.QuestionId,
                     IsTemplate = false,
-                    AttributeOptions = attrOptions
+                    AttributeOptions = attrOptions,
+                    IsPhoneNumber = attribute.IsPhoneNumber,
+                    RequiredErrorMessage = attribute.RequiredErrorMessage,
+                    UniqErrorMessage = attribute.UniqErrorMessage,
+                    UniqLimitCount = attribute.UniqLimitCount
                 };
 
                 db.Attributes.Add(attr);
@@ -186,7 +202,8 @@ namespace SCMR_Api.Controllers
                     Score = 1,
                     QuestionId = null,
                     IsTemplate = false,
-                    AttributeOptions = param.attributeOptions
+                    AttributeOptions = param.attributeOptions,
+                    UniqLimitCount = 1
                 };
 
                 db.Attributes.Add(attr);
@@ -568,8 +585,7 @@ namespace SCMR_Api.Controllers
             {
                 var attrlist = await getAttrForCat(catId);
 
-                var attr = attrList
-                .Select(c => new
+                var attr = attrList.Select(c => new
                 {
                     Id = c.Id,
                     AttrTypeInt = c.AttrTypeToInt(c.AttrType),
@@ -597,7 +613,8 @@ namespace SCMR_Api.Controllers
                     questiontypeString = c.Question != null ? c.Question.getTypeString(c.Question.Type) : "",
                     questionname = c.Question != null ? c.Question.Name : "",
                     questiontype = c.Question != null ? (int)c.Question.Type : 0,
-                    questionDefactInt = c.Question != null ? (int)c.Question.Defact : 0
+                    questionDefactInt = c.Question != null ? (int)c.Question.Defact : 0,
+                    canDeleteAttr = c.CategoryId == catId
                 })
                 .OrderBy(c => c.UnitOrder).ThenBy(c => c.UnitId)
                     .ThenBy(c => c.Order).ThenBy(c => c.queId).ThenBy(c => c.Id)
@@ -653,14 +670,34 @@ namespace SCMR_Api.Controllers
             }
         }
 
+        public class RegisterItemGetAttributeParam
+        {
+            public int catId { get; set; }
+
+            public string tk { get; set; }
+        }
 
         // return Attributes for register item
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> getAttrsForCat_C([FromBody] int catId)
+        public async Task<IActionResult> getAttrsForCat_C([FromBody] RegisterItemGetAttributeParam param)
         {
             try
             {
+                var catId = param.catId;
+
+                var isPreview = false;
+
+                try
+                {
+                    if (!string.IsNullOrEmpty(param.tk))
+                    {
+                        var decryptObj = JsonConvert.DeserializeObject<int>(param.tk.DecryptStringAES());
+                        isPreview = decryptObj == catId ? true : false;
+                    }
+                }
+                catch { }
+
                 var cat = await db.Categories.FirstOrDefaultAsync(c => c.Id == catId);
                 var attrlist = await getAttrForCat(catId);
 
@@ -681,11 +718,15 @@ namespace SCMR_Api.Controllers
                     Values = c.Values,
                     MaxFileSize = c.MaxFileSize,
                     IsMeliCode = c.IsMeliCode,
-                    AttributeOptions = c.getAttributeOptions(false, c.AttrType, c.AttributeOptions, c.Question == null || c.Question.QuestionOptions == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
+                    AttributeOptions = c.getAttributeOptions(isPreview, c.AttrType, c.AttributeOptions, c.Question == null || c.Question.QuestionOptions == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList()),
                     QuestionId = c.QuestionId,
                     QuestionType = c.AttrType == AttrType.Question ? (int)c.Question.Type : 0,
                     QuestionDefct = c.Question != null ? c.Question.Defact : 0,
-                    ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent
+                    ComplatabelContent = c.Question == null ? "" : c.Question.ComplatabelContent,
+                    IsPhoneNumber = c.IsPhoneNumber,
+                    RequiredErrorMessage = c.RequiredErrorMessage,
+                    UniqErrorMessage = c.UniqErrorMessage,
+                    QuestionName = c.Question != null && isPreview ? c.Question.Name : "",
                 })
                 .OrderBy(c => c.UnitOrder).ThenBy(c => c.UnitId)
                     .ThenBy(c => c.Order).ThenBy(c => c.QuestionId).ThenBy(c => c.Id)
@@ -823,6 +864,7 @@ namespace SCMR_Api.Controllers
                 var attributeOption = await db.AttributeOptions.FirstOrDefaultAsync(c => c.Id == option.Id);
 
                 attributeOption.Title = option.Title;
+                attributeOption.UniqLimitCount = option.UniqLimitCount;
 
                 await db.SaveChangesAsync();
 
@@ -877,6 +919,90 @@ namespace SCMR_Api.Controllers
             }
         }
 
+        class AttributeChartData
+        {
+            public string title { get; set; }
+            public bool isTrue { get; set; }
+            public string precent { get; set; }
+        }
+
+        [HttpPost]
+        [Role(RolePrefix.View, roleTitle)]
+        public async Task<IActionResult> getAttributeChartData([FromBody] getAttributeChartDataParam param)
+        {
+            try
+            {
+                var itemAttrs = await db.ItemAttributes
+                    .Include(c => c.Item)
+                .Where(c => c.AttributeId == param.attrId && c.Item.CategoryId == param.catId).ToListAsync();
+
+                var attribute = await db.Attributes.Where(c => c.Id == param.attrId).Select(c => new
+                {
+                    Id = c.Id,
+                    AttrTypeInt = c.AttrTypeToInt(c.AttrType),
+                    UnitId = c.UnitId,
+                    Title = c.AttrType == AttrType.Question ? c.Question.Name : c.Title,
+                    Desc = c.Desc,
+                    Values = c.Values,
+                    CategoryId = c.CategoryId,
+                    AttributeOptions = c.getAttributeOptions(true, c.AttrType, c.AttributeOptions, c.Question == null ? new List<QuestionOption>() : c.Question.QuestionOptions.ToList(), true),
+                }).FirstOrDefaultAsync();
+
+                var isAttrHasOption = attribute.AttributeOptions.Any();
+
+                var attrUniqValues = itemAttrs.Select(c => c.AttrubuteValue.Trim()).Distinct().ToList();
+
+                var attrChartData = new List<AttributeChartData>();
+
+
+                attrUniqValues.ForEach(val =>
+                {
+                    var valuePrecent = ((double)itemAttrs.Where(c => c.AttrubuteValue == val).Count() * 100) / (itemAttrs.Count());
+
+                    if (isAttrHasOption)
+                    {
+                        var optionTitle = "";
+                        var isTrue = false;
+                        var option = attribute.AttributeOptions.Where(c => c.Id.ToString() == val).FirstOrDefault();
+
+                        if (option != null)
+                        {
+                            optionTitle = option.Title;
+                            isTrue = option.IsTrue;
+                        }
+
+                        attrChartData.Add(new AttributeChartData
+                        {
+                            title = optionTitle,
+                            isTrue = isTrue,
+                            precent = valuePrecent.getFixed2Number()
+                        });
+                    }
+                    else
+                    {
+                        attrChartData.Add(new AttributeChartData
+                        {
+                            title = val,
+                            isTrue = false,
+                            precent = valuePrecent.getFixed2Number()
+                        });
+                    }
+                });
+
+                return this.DataFunction(true, new { attribute = attribute, attrChartData = attrChartData });
+            }
+            catch (System.Exception e)
+            {
+                return this.CatchFunction(e);
+            }
+        }
+
+    }
+
+    public class getAttributeChartDataParam
+    {
+        public int catId { get; set; }
+        public int attrId { get; set; }
     }
 
     public class QuickAddAttributeParam
@@ -910,6 +1036,10 @@ namespace SCMR_Api.Controllers
         public int QuestionType { get; set; }
         public QueDefact QuestionDefct { get; set; }
         public string ComplatabelContent { get; set; }
+        public bool IsPhoneNumber { get; set; }
+        public string RequiredErrorMessage { get; set; }
+        public string UniqErrorMessage { get; set; }
+        public string QuestionName { get; set; }
     }
 
     public class AddQuestionForCatParam

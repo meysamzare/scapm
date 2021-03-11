@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SCMR_Api.Data;
 
 namespace SCMR_Api.Migrations
 {
     [DbContext(typeof(Data.DbContext))]
-    partial class DbContextModelSnapshot : ModelSnapshot
+    [Migration("20210225170834_initUpdate50_3")]
+    partial class initUpdate50_3
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -129,8 +131,6 @@ namespace SCMR_Api.Migrations
 
                     b.Property<string>("UniqErrorMessage");
 
-                    b.Property<int>("UniqLimitCount");
-
                     b.Property<int>("UnitId");
 
                     b.Property<string>("Values");
@@ -157,8 +157,6 @@ namespace SCMR_Api.Migrations
                     b.Property<bool>("IsTrue");
 
                     b.Property<string>("Title");
-
-                    b.Property<int?>("UniqLimitCount");
 
                     b.HasKey("Id");
 
@@ -3090,10 +3088,10 @@ namespace SCMR_Api.Migrations
                         new
                         {
                             Id = 1,
-                            DateAdd = new DateTime(2021, 3, 1, 22, 47, 0, 750, DateTimeKind.Local).AddTicks(726),
+                            DateAdd = new DateTime(2021, 2, 25, 20, 38, 33, 313, DateTimeKind.Local).AddTicks(767),
                             DateEdit = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Firstname = "میثم",
-                            GId = new Guid("0712dd51-7dc8-4afd-a30c-b712246cc3fc"),
+                            GId = new Guid("1d5c2612-fd51-4828-a1a4-48cfb6ddeb95"),
                             Lastname = "زارع",
                             MeliCode = "2282795547",
                             Password = "12345678",

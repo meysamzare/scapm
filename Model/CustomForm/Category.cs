@@ -9,10 +9,15 @@ namespace SCMR_Api.Model
 {
     public class Category
     {
-        public Category() { }
+        public Category()
+        {
+            GId = Guid.NewGuid();
+        }
 
         [Key]
         public int Id { get; set; }
+
+        public Guid GId { get; set; }
 
         public string Title { get; set; }
 
@@ -27,6 +32,8 @@ namespace SCMR_Api.Model
         public bool IsActive { get; set; }
 
         public string EndMessage { get; set; }
+
+        // public bool UserCanEditData { get; set; }
 
         public bool HaveInfo { get; set; }
 
@@ -59,6 +66,7 @@ namespace SCMR_Api.Model
         public bool IsPined { get; set; }
 
 
+        public CategoryRegisterItemStepType RegisterItemStepType { get; set; }
 
         public CategoryTotalType Type { get; set; }
 
@@ -214,7 +222,8 @@ namespace SCMR_Api.Model
                 VeryHardQuestionNumber = v.veryHardQuestionNumber,
                 HardQuestionNumber = v.hardQuestionNumber,
                 ModerateQuestionNumber = v.moderateQuestionNumber,
-                EasyQuestionNumber = v.easyQuestionNumber
+                EasyQuestionNumber = v.easyQuestionNumber,
+                RegisterItemStepType = (CategoryRegisterItemStepType)v.registerItemStepType
             };
 
             return cat;
@@ -324,6 +333,13 @@ namespace SCMR_Api.Model
         }
 
         #endregion
+    }
+
+    public enum CategoryRegisterItemStepType
+    {
+        noStep = 0,
+        singleAttrStep = 1,
+        unitAttrStep = 2
     }
 
     public enum ShowRow

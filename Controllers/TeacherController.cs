@@ -425,10 +425,13 @@ namespace SCMR_Api.Controllers
         {
             try
             {
+                var nowYeareducationId = await this.getActiveYeareducationId();
+                
                 var courses = await db.Courses
                     .Where(c => c.TeacherId == teacherId)
                         .Include(c => c.Grade)
                             .ThenInclude(c => c.Yeareducation)
+                    .Where(c => c.Grade.YeareducationId == nowYeareducationId)
                 .ToListAsync();
 
                 return this.DataFunction(true, courses);

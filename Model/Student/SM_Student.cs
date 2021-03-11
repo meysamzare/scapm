@@ -186,14 +186,14 @@ namespace SCMR_Api.Model
                 return activeStdClassMng.PayrollState == (StdPayrollState)state;
             }
 
-            return false;            
+            return false;
         }
 
         public bool haveGrade(int gradeId, List<StdClassMng> stdClassMngs)
         {
             var activeStdClassMng = stdClassMngs.Where(c => c.IsActive == true).FirstOrDefault();
 
-            
+
             if (activeStdClassMng == null)
             {
                 return false;
@@ -206,13 +206,37 @@ namespace SCMR_Api.Model
         {
             var activeStdClassMng = stdClassMngs.Where(c => c.IsActive == true).FirstOrDefault();
 
-            
+
             if (activeStdClassMng == null)
             {
                 return false;
             }
 
             return activeStdClassMng.ClassId == classId;
+        }
+
+        public string getStudentGradeName(IList<StdClassMng> stdClassMng)
+        {
+            try
+            {
+                return stdClassMng.FirstOrDefault(c => c.IsActive).Grade.Name;
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        public string getStudentClassName(IList<StdClassMng> stdClassMng)
+        {
+            try
+            {
+                return stdClassMng.FirstOrDefault(c => c.IsActive).Class.Name;
+            }
+            catch
+            {
+                return "";
+            }
         }
     }
 

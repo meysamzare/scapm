@@ -32,11 +32,18 @@ namespace SCMR_Api.Model
 
         public bool IsUniq { get; set; }
 
+        public int UniqLimitCount { get; set; } = 1;
+
         public int Order { get; set; }
+
+
+        // public bool IsEditable { get; set; }
+
 
         public bool IsInClient { get; set; }
         public bool IsInShowInfo { get; set; }
         public bool IsInSearch { get; set; }
+
 
         public int OrderInInfo { get; set; }
 
@@ -44,6 +51,13 @@ namespace SCMR_Api.Model
         public bool IsRequired { get; set; }
 
         public bool IsMeliCode { get; set; }
+
+        public bool IsPhoneNumber { get; set; }
+
+
+        public string RequiredErrorMessage { get; set; }
+        public string UniqErrorMessage { get; set; }
+
 
         public double Score { get; set; }
 
